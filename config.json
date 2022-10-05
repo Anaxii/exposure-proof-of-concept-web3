@@ -1,0 +1,15 @@
+{
+  "private_key": "",
+  "main_networks": [
+    {
+      "name": "fuji",
+      "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
+      "bridge_address": "0x78a8D646Ebcc88465c67f82d664776a68d5CB0dd"
+    }
+  ],
+  "subnet": {
+    "name": "fuji",
+    "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
+    "bridge_manager_address": "0x2741259D3BA96505Fe694f0b7cCE46865A965389"
+  }
+}
