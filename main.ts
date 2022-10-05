@@ -13,6 +13,10 @@ function getConfig() {
     let config = getConfig()
     let eventHandler = new events.EventEmitter();
 
+    if (process.env.pkey) {
+        config.private_key = process.env.pkey
+    }
+
     let networks: {[key: string]: Mainnet} = {}
     let s = new Subnet(config.subnet, eventHandler, config.private_key)
     for (const i in config.main_networks) {
