@@ -1,4 +1,5 @@
 declare interface Config {
+    private_key: string
     main_networks: MainNetwork[]
     subnet: SubNetwork
 }

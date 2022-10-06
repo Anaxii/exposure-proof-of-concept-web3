@@ -1,39 +1,35 @@
 import Mainnet from "./Mainnet";
 import Subnet from "./Subnet";
+import {writeJSON} from "../util/Util";
 
-const events = require('events');
 const fs = require('fs');
 
-function getConfig() {
-    let rawdata = fs.readFileSync('config.json');
-    return JSON.parse(rawdata)
-}
-
-function checkTokenList(symbol: string, address: string) {
+function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
     let rawdata = fs.readFileSync('tokens.json');
     let tokens = JSON.parse(rawdata)
 
     if (!tokens[symbol]) {
-        tokens[symbol] = [symbol]
+        tokens[symbol] = {[network]: address}
+        console.log(`Added ${symbol} on ${network} for oracle tracking`)
+        eventHandler.emit('checkForPairs', {symbol, network})
     } else {
         for (const i in tokens[symbol]) {
-            if (tokens[symbol][i] == address)
+            if (tokens[symbol][i][network])
                 return
         }
-        tokens[symbol].push(address)
+        tokens[symbol][network] = address
+        eventHandler.emit('checkForPairs', {symbol, network})
     }
-    fs.writeFileSync('tokens.json', JSON.stringify(tokens, null, 4))
+    writeJSON("tokens.json", tokens)
 }
 
-export default async function Swap() {
+export default async function Swap(eventHandler: any, config: Config) {
 
-    let config = getConfig()
-    let eventHandler = new events.EventEmitter();
     if (process.env.pkey) {
         config.private_key = process.env.pkey
     }
 
-    let networks: {[key: string]: Mainnet} = {}
+    let networks: { [key: string]: Mainnet } = {}
     let s = new Subnet(config.subnet, eventHandler, config.private_key)
     for (const i in config.main_networks) {
         networks[config.main_networks[i].name] = new Mainnet(config.main_networks[i], eventHandler, config.private_key)
@@ -42,7 +38,7 @@ export default async function Swap() {
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);
         s.bridgeToSubnet(data.asset, data.user, data.amount, data.assetName, data.assetSymbol)
-        checkTokenList(data.assetSymbol, data.asset)
+        checkTokenList(data.assetSymbol, data.asset, data.network.name, eventHandler)
     })
     eventHandler.on('BridgeToMainnet', function (data: any) {
         console.log('ToMainnet', data);
