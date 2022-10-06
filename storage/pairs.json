@@ -1,8 +1,13 @@
 {
-    "fuji": {
-        "Token C": {
+    "Token C": {
+        "fuji": {
             "exposure": {
-                "Token C/WAVAX": "0xd32953c04A106a0753b29D371C1e7074C3cF8068"
+                "Token C/WAVAX": {
+                    "pair": "0xd32953c04A106a0753b29D371C1e7074C3cF8068",
+                    "token": "0x1948EaB46Ff886190eBd50250EB486517e132F3B",
+                    "quote": "0x72187342BC71CAd08FcCC361ff8336A684dd6883",
+                    "price": "18651818530125737"
+                }
             }
         }
     }
