@@ -2,7 +2,6 @@ import {getJSON, sleep, writeJSON} from "../util";
 import Subnet from "../EVM/Subnet";
 import Mainnet from "../EVM/Mainnet";
 
-const {ethers} = require("ethers");
 const schedule = require('node-schedule');
 
 export default async function Oracle(eventHandler: any, config: any, subnet: Subnet, networks: { [key: string]: Mainnet }) {
