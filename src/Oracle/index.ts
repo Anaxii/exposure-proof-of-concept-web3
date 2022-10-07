@@ -1,8 +1,9 @@
-import {getJSON, writeJSON} from "../util/Util";
-import Subnet from "../Swap/Subnet";
-import Mainnet from "../Swap/Mainnet";
+import {getJSON, sleep, writeJSON} from "../util";
+import Subnet from "../EVM/Subnet";
+import Mainnet from "../EVM/Mainnet";
 
 const {ethers} = require("ethers");
+const schedule = require('node-schedule');
 
 export default async function Oracle(eventHandler: any, config: any, subnet: Subnet, networks: { [key: string]: Mainnet }) {
     let api_urls: { [key: string]: string } = {}
@@ -11,20 +12,39 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
     }
     api_urls[config["subnet"].name] = config["subnet"].api_url
 
-    eventHandler.on('checkForPairs', function (data: any) {
+    let checkingPairs = false
+    let updatingPrices = false
+    eventHandler.on('checkForPairs', async function (data: any) {
+        while (checkingPairs) {
+            await sleep(500)
+        }
         console.log('checkForPairs', data);
-        checkForDEXPairs(data.symbol, data.network, api_urls[data.symbol])
+        checkingPairs = true
+        await checkForDEXPairs(networks, data.symbol, data.network)
+        checkingPairs = false
     })
-    await computePrices(networks)
-    // await updateMainnetPrices(api_urls, networks)
 
+    const rule = new schedule.RecurrenceRule();
+    rule.minute = [0, new schedule.Range(0, 59)];
 
+    schedule.scheduleJob(rule, async () => {
+        while (checkingPairs) {
+            await sleep(500)
+        }
+        updatingPrices = true
+        console.log('Starting price update loop');
+        await updateMainnetPrices(api_urls, networks)
+        await computePrices(networks)
+        await updateSubnetPrices(subnet)
+        updatingPrices = false
+        console.log("Finished price update loop")
+    });
 }
 
 async function computePrices(networks: { [key: string]: Mainnet }) {
-    let tokenPrices: {[key: string]: any} = await loopPairs(networks, "computePrices")
+    let tokenPrices: { [key: string]: any } = await loopPairs(networks, "computePrices")
 
-    let finalPrices: {[key: string]: any} = {}
+    let finalPrices: { [key: string]: any } = {}
     for (const token in tokenPrices) {
         let sum = BigInt(0)
         for (const index in tokenPrices[token]) {
@@ -38,8 +58,26 @@ async function computePrices(networks: { [key: string]: Mainnet }) {
     console.log("Updated prices")
 }
 
-async function updateSubnetPrices() {
+async function updateSubnetPrices(subnet: Subnet) {
+    let prices = getJSON("prices.json")
+    let tokens = getJSON("tokens.json")
 
+    let tokenList: any[][] = [[]]
+    let priceList: any[][] = [[]]
+    for (const i in prices) {
+        if (tokenList.length > 20) {
+            tokenList.push([])
+            priceList.push([])
+        }
+        priceList[priceList.length - 1].push(prices[i])
+        tokenList[tokenList.length - 1].push(tokens[i]['fuji'])
+    }
+
+    for (const i in tokenList) {
+        await subnet.updatePrices(tokenList[i], priceList[i])
+    }
+
+    console.log("Finished updating subnet prices")
 }
 
 async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
@@ -47,8 +85,8 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
     let dollarCoins: any = getJSON("dollar_coins.json")
     let routers: any = getJSON("routers.json")
 
-    let tokenPrices: {[key: string]: any} = {}
-    let quotePrices: {[key: string]: any} = {}
+    let tokenPrices: { [key: string]: any } = {}
+    let quotePrices: { [key: string]: any } = {}
 
     let toUpdate: { [key: string]: any[] } = {}
 
@@ -71,16 +109,16 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
                         })
                     } else {
                         let price = await await networks[network].getPrice(tokens[token][network][dex][trading_pair].pair)
-                        if (!dollarCoins[network][token]) {
+                        if (!dollarCoins[network][tokens[token][network][dex][trading_pair].quoteName]) {
                             let qp = quotePrices[tokens[token][network][dex][trading_pair].quote]
                             if (!qp) {
                                 let router = routers[network][dex]
                                 let pairAddress = await networks[network].getPairAddress(router, tokens[token][network][dex][trading_pair].quote, dollarCoins[network]["USDC"])
-                                await networks[network].updatePrice([pairAddress], [tokens[token][network][dex][trading_pair].quote], [dollarCoins[network]["USDC"]])
+                                await networks[network].updatePrices([pairAddress], [tokens[token][network][dex][trading_pair].quote], [dollarCoins[network]["USDC"]])
                                 qp = await networks[network].getPrice(pairAddress)
                             }
                             quotePrices[tokens[token][network][dex][trading_pair].quote] = qp
-                            tokenPrices[token].push((BigInt(price) * BigInt(10**18) / BigInt(qp)).toString())
+                            tokenPrices[token].push((BigInt(price) * BigInt(10 ** 18) / BigInt(qp)).toString())
                             continue
                         }
                         tokenPrices[token].push(price)
@@ -100,7 +138,6 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
 async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mainnet }) {
 
     let toUpdate: { [key: string]: any[] } = await loopPairs(networks, "updateMainnet")
-
     for (const network in toUpdate) {
         for (const batch in toUpdate[network]) {
             let _pairs = []
@@ -111,29 +148,18 @@ async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mai
                 _tokens.push(toUpdate[network][batch][item].token)
                 _quotes.push(toUpdate[network][batch][item].quote)
             }
-            networks[network].updatePrice(_pairs, _tokens, _quotes)
+            await networks[network].updatePrices(_pairs, _tokens, _quotes)
         }
     }
 
     console.log("Updated pair prices")
-
 }
 
-async function checkForDEXPairs(symbol: any, network: any, api_url: any) {
-    let provider = new ethers.providers.JsonRpcProvider(api_url);
-
-    const abi = [
-        "function factory() external pure returns (address)",
-        "function getPair(address tokenA, address tokenB) external view returns (address pair)"
-    ];
-
+async function checkForDEXPairs(networks: { [key: string]: Mainnet }, symbol: any, network: any) {
     let routers = getJSON("routers.json")[network]
     let router_pairs: { [key: string]: any } = {}
     for (const router in routers) {
         let r = routers[router]
-
-        let router_contract = new ethers.Contract(r, abi, provider);
-        let factory_address = await router_contract.factory()
 
         let liquidity_tokens = getJSON("liquidity_tokens.json")
         let pair_tokens: { [key: string]: any } = {}
@@ -144,10 +170,15 @@ async function checkForDEXPairs(symbol: any, network: any, api_url: any) {
         let token_address = getJSON("tokens.json")[symbol][network]
         let pairs: { [key: string]: any } = {}
         for (const i in pair_tokens) {
-            let factory_contract = new ethers.Contract(factory_address, abi, provider);
-            let pair = await factory_contract.getPair(token_address, pair_tokens[i])
+            let pair = await networks[network].getPairAddress(r, token_address, pair_tokens[i])
             if (pair != "0x0000000000000000000000000000000000000000")
-                pairs[symbol + "/" + i] = {pair: pair, token: token_address, quote: pair_tokens[i]}
+                pairs[symbol + "/" + i] = {
+                    pair: pair,
+                    token: token_address,
+                    quote: pair_tokens[i],
+                    tokenName: symbol,
+                    quoteName: i
+                }
         }
         router_pairs[router] = pairs
 
@@ -163,5 +194,4 @@ async function checkForDEXPairs(symbol: any, network: any, api_url: any) {
     console.log(`Updated ${symbol} in pairs.json`)
 
     writeJSON("pairs.json", stored_pairs)
-
 }

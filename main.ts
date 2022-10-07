@@ -1,8 +1,8 @@
 import Swap from "./src/Swap";
 import Oracle from "./src/Oracle";
-import {getJSON} from "./src/util/Util";
-import Mainnet from "./src/Swap/Mainnet";
-import Subnet from "./src/Swap/Subnet";
+import {getJSON} from "./src/util";
+import Mainnet from "./src/EVM/Mainnet";
+import Subnet from "./src/EVM/Subnet";
 
 const events = require('events');
 

@@ -1,6 +1,6 @@
-import Mainnet from "./Mainnet";
-import Subnet from "./Subnet";
-import {writeJSON, getJSON} from "../util/Util";
+import Mainnet from "../EVM/Mainnet";
+import Subnet from "../EVM/Subnet";
+import {writeJSON, getJSON} from "../util";
 
 function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
     let tokens = getJSON("tokens.json")

@@ -45,7 +45,7 @@ export default class Mainnet extends Network {
 
     }
 
-    async updatePrice(pair: string[], asset: string[], quote: string[]) {
+    async updatePrices(pair: string[], asset: string[], quote: string[]) {
         const abi = [
             "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
         ];
@@ -56,7 +56,7 @@ export default class Mainnet extends Network {
         const contractWithSigner = contract.connect(signer)
         let tx = await contractWithSigner.updateMultiple(pair, asset, quote)
         await tx.wait(2)
-        console.log(`Updated some prices (batched)`)
+        console.log(`Updated some mainnet prices (batched)`)
 
     }
 
