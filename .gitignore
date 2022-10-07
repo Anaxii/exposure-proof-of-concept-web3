@@ -1,3 +1,5 @@
 .idea
 *.js
 node_modules
+truffle/build
+package-lock.json

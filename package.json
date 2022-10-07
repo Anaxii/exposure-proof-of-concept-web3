@@ -1,0 +1,24 @@
+{
+  "name": "bridgewebapppoc",
+  "version": "1.0.0",
+  "description": "**Exposure Bridge for Proof of Concept**<br/>\r Reads events from the subnet and any main network with an Exposure bridge.<br/>\r Will mint tokens on the subnet or transfer tokens from a mainnet bridge to the user.",
+  "main": "main.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Anaxii/exposure-bridge-proof-of-concept.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Anaxii/exposure-bridge-proof-of-concept/issues"
+  },
+  "homepage": "https://github.com/Anaxii/exposure-bridge-proof-of-concept#readme",
+  "devDependencies": {
+    "@types/jest": "^29.1.2",
+    "truffle": "^5.6.0"
+  }
+}
