@@ -3,3 +3,4 @@
 node_modules
 truffle/build
 package-lock.json
+truffle/truffle-config.js
