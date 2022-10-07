@@ -1,10 +1,12 @@
 import {getJSON, writeJSON} from "../util/Util";
+import Subnet from "../Swap/Subnet";
+import Mainnet from "../Swap/Mainnet";
 
 const {ethers} = require("ethers");
 const NodeCache = require("node-cache");
 const priceCache = new NodeCache({stdTTL: 30});
 
-export default async function Oracle(eventHandler: any, config: any) {
+export default async function Oracle(eventHandler: any, config: any, subnet: Subnet, networks: { [key: string]: Mainnet }) {
     let api_urls: { [key: string]: string } = {}
     for (const i in config["main_networks"]) {
         api_urls[config["main_networks"][i].name] = config["main_networks"][i].api_url
@@ -16,45 +18,60 @@ export default async function Oracle(eventHandler: any, config: any) {
         checkForDEXPairs(data.symbol, data.network, api_urls[data.symbol])
     })
 
-    await getPrices(api_urls)
+    await updateMainnetPrices(api_urls, networks)
 
 
 }
 
-async function getPrices(api_urls: any) {
-    const abi = [
-        "function balanceOf(address account) external view returns (uint256)",
-    ]
+async function computePrices() {
 
-    let pairs = getJSON("pairs.json")
-    for (const pair in pairs) {
-        for (const network in pairs[pair]) {
-            let provider = new ethers.providers.JsonRpcProvider(api_urls[network]);
+}
 
-            for (const dex in pairs[pair][network]) {
-                for (const trading_pair in pairs[pair][network][dex]) {
-                    if (priceCache.get((pair + network + dex + trading_pair).toString()))
-                        continue
+async function updateSubnetPrices() {
 
-                    let token_contract = new ethers.Contract(pairs[pair][network][dex][trading_pair].token, abi, provider);
-                    let token_balance = await token_contract.balanceOf(pairs[pair][network][dex][trading_pair].pair)
+}
 
-                    let quote_contract = new ethers.Contract(pairs[pair][network][dex][trading_pair].quote, abi, provider);
-                    let quote_balance = await quote_contract.balanceOf(pairs[pair][network][dex][trading_pair].pair)
+async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mainnet }) {
 
-                    let price = (BigInt(token_balance.toString()) * BigInt(10 ** 18) / BigInt(quote_balance.toString())).toString()
-                    pairs[pair][network][dex][trading_pair].price = price
-                    priceCache.mset([{key: (pair + network + dex + trading_pair).toString(), val: price}])
+    let tokens: any = getJSON("pairs.json")
+    let toUpdate: { [key: string]: any[] } = {}
+
+    for (const token in tokens) {
+        for (const network in tokens[token]) {
+            if (!toUpdate[network])
+                toUpdate[network] = [[]]
+            for (const dex in tokens[token][network]) {
+                for (const trading_pair in tokens[token][network][dex]) {
+                    if (toUpdate[network][toUpdate[network].length - 1].length >= 20)
+                        toUpdate[network].push([])
+                    toUpdate[network][toUpdate[network].length - 1].push({pair: tokens[token][network][dex][trading_pair].pair,
+                        token: tokens[token][network][dex][trading_pair].token,
+                        quote: tokens[token][network][dex][trading_pair].quote})
                 }
             }
         }
     }
+    
+    for (const network in toUpdate) {
+        for (const batch in toUpdate[network]) {
+            let _pairs = []
+            let _tokens = []
+            let _quotes = []
+            for (const item in toUpdate[network][batch]) {
+                _pairs.push(toUpdate[network][batch][item].pair)
+                _tokens.push(toUpdate[network][batch][item].token)
+                _quotes.push(toUpdate[network][batch][item].quote)
+            }
+            networks[network].updatePrice(_pairs, _tokens, _quotes)
+        }
+    }
+
     console.log("Updated pair prices")
-    writeJSON("pairs.json", pairs)
 
 }
 
-async function getPrice() {
+async function updatePrice() {
+
 }
 
 async function checkForDEXPairs(symbol: any, network: any, api_url: any) {

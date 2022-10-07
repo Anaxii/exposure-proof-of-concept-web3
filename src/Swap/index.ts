@@ -20,21 +20,11 @@ function checkTokenList(symbol: string, address: string, network: string, eventH
     writeJSON("tokens.json", tokens)
 }
 
-export default async function Swap(eventHandler: any, config: Config) {
-
-    if (process.env.pkey) {
-        config.private_key = process.env.pkey
-    }
-
-    let networks: { [key: string]: Mainnet } = {}
-    let s = new Subnet(config.subnet, eventHandler, config.private_key)
-    for (const i in config.main_networks) {
-        networks[config.main_networks[i].name] = new Mainnet(config.main_networks[i], eventHandler, config.private_key)
-    }
+export default async function Swap(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
 
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);
-        s.bridgeToSubnet(data.asset, data.user, data.amount, data.assetName, data.assetSymbol)
+        subnet.bridgeToSubnet(data.asset, data.user, data.amount, data.assetName, data.assetSymbol)
         checkTokenList(data.assetSymbol, data.asset, data.network.name, eventHandler)
     })
     eventHandler.on('BridgeToMainnet', function (data: any) {

@@ -5,7 +5,7 @@
       "name": "fuji",
       "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
       "bridge_address": "0x78a8D646Ebcc88465c67f82d664776a68d5CB0dd",
-      "oracle": "0xD12B98A7CAD892882e073eA599c92203a68A452e"
+      "oracle": "0x8465670D1B79E0708c2880AC21ef73Ad54576f79"
     }
   ],
   "subnet": {

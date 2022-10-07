@@ -40,8 +40,23 @@ export default class Mainnet extends Network {
         const signer = new ethers.Wallet(this.privateKey, this.provider)
         const contractWithSigner = contract.connect(signer)
         let tx = await contractWithSigner.bridgeToMainnet(amount, asset, user)
-        await tx.wait()
+        await tx.wait(2)
         console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user}`)
+
+    }
+
+    async updatePrice(pair: string[], asset: string[], quote: string[]) {
+        const abi = [
+            "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
+        ];
+
+        const contract = new ethers.Contract(this.config.oracle, abi, this.provider);
+
+        const signer = new ethers.Wallet(this.privateKey, this.provider)
+        const contractWithSigner = contract.connect(signer)
+        let tx = await contractWithSigner.updateMultiple(pair, asset, quote)
+        await tx.wait(2)
+        console.log(`Updated some prices (batched)`)
 
     }
 }

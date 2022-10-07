@@ -12,6 +12,7 @@ pragma solidity ^0.8.0;
 contract ExposureOracle {
 
     mapping(address => uint256) public price;
+    mapping(address => uint256) public liquidity;
 
     event UpdatedPrice(uint256 indexed price, address indexed token, address indexed quote, address pair);
 
@@ -39,6 +40,7 @@ contract ExposureOracle {
         }
 
         uint _price = 0;
+        uint liq = 0;
         if (IUniswapV2Pair(pair).token0() == tokenIn) {
             _price = reserve0 * 1e18 / reserve1;
         } else {
@@ -46,6 +48,7 @@ contract ExposureOracle {
         }
 
         price[pair] = _price;
+        liquidity[pair] = IERC20(tokenIn).balanceOf(pair);
         emit UpdatedPrice(_price, tokenIn, tokenOut, pair);
 
         return _price;

@@ -39,8 +39,24 @@ export default class Subnet extends Network {
 
         const signer = new ethers.Wallet(this.privateKey, this.provider)
         const contractWithSigner = contract.connect(signer)
+
         let tx = await contractWithSigner.bridgeToSubnet(asset, user, amount, assetName, assetSymbol)
-        await tx.wait()
+        await tx.wait(2)
         console.log(`Bridged ${amount} (1e18) ${assetSymbol} to the subnet for ${user}`)
+    }
+
+    async updatePrice(asset: string, price: string) {
+        const abi = [
+            "function updatePrice(address mainnetToken, uint256 _price) public returns (uint updatedPrice)"
+        ];
+
+        const contract = new ethers.Contract(this.config.oracle, abi, this.provider);
+
+        const signer = new ethers.Wallet(this.privateKey, this.provider)
+        const contractWithSigner = contract.connect(signer)
+
+        let tx = await contractWithSigner.updatePrice(asset, price)
+        await tx.wait(2)
+        console.log(`Updated price for ${asset} to ${price} on the subnet`)
     }
 }
