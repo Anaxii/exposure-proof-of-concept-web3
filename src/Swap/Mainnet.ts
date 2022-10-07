@@ -59,4 +59,29 @@ export default class Mainnet extends Network {
         console.log(`Updated some prices (batched)`)
 
     }
+
+    async getPrice(pair: string) {
+        const abi = [
+            "function price(address) view returns (uint256)",
+        ];
+
+        const contract = new ethers.Contract(this.config.oracle, abi, this.provider);
+
+        let price = await contract.price(pair)
+        return price.toString()
+    }
+
+    async getPairAddress(router: string, token: string, quote: string) {
+        const abi = [
+            "function factory() external pure returns (address)",
+            "function getPair(address tokenA, address tokenB) external view returns (address pair)"
+        ];
+
+        const routerContract = new ethers.Contract(router, abi, this.provider);
+        let factory = await routerContract.factory()
+
+        const factoryContract = new ethers.Contract(factory, abi, this.provider);
+        return await factoryContract.getPair(token, quote)
+
+    }
 }

@@ -3,8 +3,6 @@ import Subnet from "../Swap/Subnet";
 import Mainnet from "../Swap/Mainnet";
 
 const {ethers} = require("ethers");
-const NodeCache = require("node-cache");
-const priceCache = new NodeCache({stdTTL: 30});
 
 export default async function Oracle(eventHandler: any, config: any, subnet: Subnet, networks: { [key: string]: Mainnet }) {
     let api_urls: { [key: string]: string } = {}
@@ -17,41 +15,92 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
         console.log('checkForPairs', data);
         checkForDEXPairs(data.symbol, data.network, api_urls[data.symbol])
     })
-
-    await updateMainnetPrices(api_urls, networks)
+    await computePrices(networks)
+    // await updateMainnetPrices(api_urls, networks)
 
 
 }
 
-async function computePrices() {
+async function computePrices(networks: { [key: string]: Mainnet }) {
+    let tokenPrices: {[key: string]: any} = await loopPairs(networks, "computePrices")
 
+    let finalPrices: {[key: string]: any} = {}
+    for (const token in tokenPrices) {
+        let sum = BigInt(0)
+        for (const index in tokenPrices[token]) {
+            sum += BigInt(tokenPrices[token][index])
+        }
+        finalPrices[token] = (sum / BigInt(tokenPrices[token].length)).toString()
+    }
+
+    writeJSON("prices.json", finalPrices)
+
+    console.log("Updated prices")
 }
 
 async function updateSubnetPrices() {
 
 }
 
-async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mainnet }) {
-
+async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
     let tokens: any = getJSON("pairs.json")
+    let dollarCoins: any = getJSON("dollar_coins.json")
+    let routers: any = getJSON("routers.json")
+
+    let tokenPrices: {[key: string]: any} = {}
+    let quotePrices: {[key: string]: any} = {}
+
     let toUpdate: { [key: string]: any[] } = {}
 
     for (const token in tokens) {
+        tokenPrices[token] = []
         for (const network in tokens[token]) {
-            if (!toUpdate[network])
-                toUpdate[network] = [[]]
+            if (type == "updateMainnet") {
+                if (!toUpdate[network])
+                    toUpdate[network] = [[]]
+            }
             for (const dex in tokens[token][network]) {
                 for (const trading_pair in tokens[token][network][dex]) {
-                    if (toUpdate[network][toUpdate[network].length - 1].length >= 20)
-                        toUpdate[network].push([])
-                    toUpdate[network][toUpdate[network].length - 1].push({pair: tokens[token][network][dex][trading_pair].pair,
-                        token: tokens[token][network][dex][trading_pair].token,
-                        quote: tokens[token][network][dex][trading_pair].quote})
+                    if (type == "updateMainnet") {
+                        if (toUpdate[network][toUpdate[network].length - 1].length >= 20)
+                            toUpdate[network].push([])
+                        toUpdate[network][toUpdate[network].length - 1].push({
+                            pair: tokens[token][network][dex][trading_pair].pair,
+                            token: tokens[token][network][dex][trading_pair].token,
+                            quote: tokens[token][network][dex][trading_pair].quote
+                        })
+                    } else {
+                        let price = await await networks[network].getPrice(tokens[token][network][dex][trading_pair].pair)
+                        if (!dollarCoins[network][token]) {
+                            let qp = quotePrices[tokens[token][network][dex][trading_pair].quote]
+                            if (!qp) {
+                                let router = routers[network][dex]
+                                let pairAddress = await networks[network].getPairAddress(router, tokens[token][network][dex][trading_pair].quote, dollarCoins[network]["USDC"])
+                                await networks[network].updatePrice([pairAddress], [tokens[token][network][dex][trading_pair].quote], [dollarCoins[network]["USDC"]])
+                                qp = await networks[network].getPrice(pairAddress)
+                            }
+                            quotePrices[tokens[token][network][dex][trading_pair].quote] = qp
+                            tokenPrices[token].push((BigInt(price) * BigInt(10**18) / BigInt(qp)).toString())
+                            continue
+                        }
+                        tokenPrices[token].push(price)
+                    }
                 }
             }
         }
     }
-    
+
+    if (type == "updateMainnet") {
+        return toUpdate
+    } else {
+        return tokenPrices
+    }
+}
+
+async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mainnet }) {
+
+    let toUpdate: { [key: string]: any[] } = await loopPairs(networks, "updateMainnet")
+
     for (const network in toUpdate) {
         for (const batch in toUpdate[network]) {
             let _pairs = []
@@ -67,10 +116,6 @@ async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mai
     }
 
     console.log("Updated pair prices")
-
-}
-
-async function updatePrice() {
 
 }
 
