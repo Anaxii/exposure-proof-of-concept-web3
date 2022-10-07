@@ -30,7 +30,7 @@ async function getPrices(api_urls: any) {
     for (const pair in pairs) {
         for (const network in pairs[pair]) {
             let provider = new ethers.providers.JsonRpcProvider(api_urls[network]);
-            
+
             for (const dex in pairs[pair][network]) {
                 for (const trading_pair in pairs[pair][network][dex]) {
                     if (priceCache.get((pair + network + dex + trading_pair).toString()))

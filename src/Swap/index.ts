@@ -1,12 +1,9 @@
 import Mainnet from "./Mainnet";
 import Subnet from "./Subnet";
-import {writeJSON} from "../util/Util";
-
-const fs = require('fs');
+import {writeJSON, getJSON} from "../util/Util";
 
 function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
-    let rawdata = fs.readFileSync('tokens.json');
-    let tokens = JSON.parse(rawdata)
+    let tokens = getJSON("tokens.json")
 
     if (!tokens[symbol]) {
         tokens[symbol] = {[network]: address}
