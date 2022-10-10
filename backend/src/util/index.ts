@@ -7,7 +7,6 @@ export function getJSON(file_name: string) {
 
 export function writeJSON(file_name: string, data: any) {
     fs.writeFileSync('backend/storage/' + file_name, JSON.stringify(data, null, 4))
-
 }
 
 export function sleep(ms: number) {

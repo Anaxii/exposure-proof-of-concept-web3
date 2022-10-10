@@ -9,79 +9,95 @@ export default class Mainnet extends Network {
         this.monitor()
     }
 
-    private async monitor() {
-        const abi = [
-            "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, string name_, string symbol_)",
-            "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, string name_, string symbol_)"
-        ];
+    async bridgeToSubnet(amount: string, address: string) {
+        const signer = new ethers.Wallet(this.privateKey, this.provider)
+        try {
+            let contract = new ethers.Contract(address, this.abi, this.provider);
+            const tokenContract = contract.connect(signer)
+            let tx = tokenContract.approve(this.config.bridge_address, amount)
+            await tx.wait(2)
 
-        const contract = new ethers.Contract(this.config.bridge_address, abi, this.provider);
+            contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            const bridgeContract = contract.connect(signer)
+            tx = await bridgeContract.bridgeToSubnet(amount, address)
+            await tx.wait(2)
 
-
-        contract.on("BridgeToSubnet", (user: any, asset: any, amount: any, assetName: any, assetSymbol: any, event: any) => {
-            this.eventHandler.emit('BridgeToSubnet', {
-                network: this.config,
-                user,
-                asset,
-                amount: amount.toString(),
-                assetName,
-                assetSymbol
-            });
-        });
+            console.log(`Send bridge request on mainnet for token ${address}`)
+            return true
+        } catch (err: any) {
+            return false
+        }
     }
 
     async bridgeToMainnet(asset: string, user: string, amount: string, symbol: string, network: string) {
-        const abi = [
-            "function bridgeToMainnet(uint256 amount, address asset, address user) public",
-        ];
-
-        const contract = new ethers.Contract(this.config.bridge_address, abi, this.provider);
-
-        const signer = new ethers.Wallet(this.privateKey, this.provider)
-        const contractWithSigner = contract.connect(signer)
-        let tx = await contractWithSigner.bridgeToMainnet(amount, asset, user)
-        await tx.wait(2)
-        console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user}`)
-
+        try {
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            const signer = new ethers.Wallet(this.privateKey, this.provider)
+            const contractWithSigner = contract.connect(signer)
+            let tx = await contractWithSigner.bridgeToMainnet(amount, asset, user)
+            await tx.wait(2)
+            console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user}`)
+            return true
+        } catch {
+            return false
+        }
     }
 
     async updatePrices(pair: string[], asset: string[], quote: string[]) {
-        const abi = [
-            "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
-        ];
-
-        const contract = new ethers.Contract(this.config.oracle, abi, this.provider);
-
-        const signer = new ethers.Wallet(this.privateKey, this.provider)
-        const contractWithSigner = contract.connect(signer)
-        let tx = await contractWithSigner.updateMultiple(pair, asset, quote)
-        await tx.wait(2)
-        console.log(`Updated some mainnet prices (batched)`)
-
+        try {
+            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
+            const signer = new ethers.Wallet(this.privateKey, this.provider)
+            const contractWithSigner = contract.connect(signer)
+            let tx = await contractWithSigner.updateMultiple(pair, asset, quote)
+            await tx.wait(2)
+            console.log(`Updated some mainnet prices (batched)`)
+            return true
+        } catch (err: any) {
+            console.log(err)
+            return false
+        }
     }
 
     async getPrice(pair: string) {
-        const abi = [
-            "function price(address) view returns (uint256)",
-        ];
-
-        const contract = new ethers.Contract(this.config.oracle, abi, this.provider);
-
-        let price = await contract.price(pair)
-        return price.toString()
+        try {
+            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
+            let price = await contract.price(pair)
+            return price.toString()
+        } catch {
+            return ""
+        }
     }
 
     async getPairAddress(router: string, token: string, quote: string) {
-        const abi = [
-            "function factory() external pure returns (address)",
-            "function getPair(address tokenA, address tokenB) external view returns (address pair)"
-        ];
+        try {
+            const routerContract = new ethers.Contract(router, this.abi, this.provider);
+            let factory = await routerContract.factory()
 
-        const routerContract = new ethers.Contract(router, abi, this.provider);
-        let factory = await routerContract.factory()
+            const factoryContract = new ethers.Contract(factory, this.abi, this.provider);
+            return await factoryContract.getPair(token, quote)
+        } catch {
+            {
+                return ""
+            }
+        }
+    }
 
-        const factoryContract = new ethers.Contract(factory, abi, this.provider);
-        return await factoryContract.getPair(token, quote)
+    private async monitor() {
+        try {
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            contract.on("BridgeToSubnet", (user: any, asset: any, amount: any, assetName: any, assetSymbol: any, event: any) => {
+                this.eventHandler.emit('BridgeToSubnet', {
+                    network: this.config,
+                    user,
+                    asset,
+                    amount: amount.toString(),
+                    assetName,
+                    assetSymbol
+                });
+            });
+        } catch {
+            process.exit()
+        }
 
     }
 }

@@ -73,7 +73,9 @@ async function updateSubnetPrices(subnet: Subnet) {
     }
 
     for (const i in tokenList) {
-        await subnet.updatePrices(tokenList[i], priceList[i])
+        let success = await subnet.updatePrices(tokenList[i], priceList[i])
+        if (!success)
+            console.log(`Failed to update subnet prices`)
     }
 
     console.log("Finished updating subnet prices")
@@ -86,7 +88,6 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
 
     let tokenPrices: { [key: string]: any } = {}
     let quotePrices: { [key: string]: any } = {}
-
     let toUpdate: { [key: string]: any[] } = {}
 
     for (const token in tokens) {
@@ -113,7 +114,11 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
                             if (!qp) {
                                 let router = routers[network][dex]
                                 let pairAddress = await networks[network].getPairAddress(router, tokens[token][network][dex][trading_pair].quote, dollarCoins[network]["USDC"])
-                                await networks[network].updatePrices([pairAddress], [tokens[token][network][dex][trading_pair].quote], [dollarCoins[network]["USDC"]])
+                                if (pairAddress == "")
+                                    continue
+                                let success = await networks[network].updatePrices([pairAddress], [tokens[token][network][dex][trading_pair].quote], [dollarCoins[network]["USDC"]])
+                                if (!success)
+                                    continue
                                 qp = await networks[network].getPrice(pairAddress)
                             }
                             quotePrices[tokens[token][network][dex][trading_pair].quote] = qp
@@ -147,7 +152,9 @@ async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mai
                 _tokens.push(toUpdate[network][batch][item].token)
                 _quotes.push(toUpdate[network][batch][item].quote)
             }
-            await networks[network].updatePrices(_pairs, _tokens, _quotes)
+            let success = await networks[network].updatePrices(_pairs, _tokens, _quotes)
+            if (!success)
+                console.log(`Failed to update mainnet prices`)
         }
     }
 
@@ -170,7 +177,7 @@ async function checkForDEXPairs(networks: { [key: string]: Mainnet }, symbol: an
         let pairs: { [key: string]: any } = {}
         for (const i in pair_tokens) {
             let pair = await networks[network].getPairAddress(r, token_address, pair_tokens[i])
-            if (pair != "0x0000000000000000000000000000000000000000")
+            if (pair != "0x0000000000000000000000000000000000000000" && pair != "")
                 pairs[symbol + "/" + i] = {
                     pair: pair,
                     token: token_address,

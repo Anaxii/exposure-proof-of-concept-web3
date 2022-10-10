@@ -1,4 +1,4 @@
-import Swap from "./src/Swap";
+import Swap from "./src/Bridge";
 import Oracle from "./src/Oracle";
 import {getJSON} from "./src/util";
 import Mainnet from "./src/EVM/Mainnet";

@@ -1,17 +1,38 @@
 {
   "private_key": "",
+  "public_key": "0x56A52b69179fB4BF0d0Bc9aefC340E63c36d3895",
   "main_networks": [
     {
       "name": "fuji",
       "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
       "bridge_address": "0x78a8D646Ebcc88465c67f82d664776a68d5CB0dd",
-      "oracle": "0x8465670D1B79E0708c2880AC21ef73Ad54576f79"
+      "oracle": "0x8465670D1B79E0708c2880AC21ef73Ad54576f79",
+      "abi": [
+        "function bridgeToSubnet(uint256 amount, address asset) public",
+        "function approve(address spender, uint256 amount) public returns (bool)",
+        "function bridgeToMainnet(uint256 amount, address asset, address user) public",
+        "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
+        "function price(address) view returns (uint256)",
+        "function factory() external pure returns (address)",
+        "function getPair(address tokenA, address tokenB) external view returns (address pair)",
+        "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, string name_, string symbol_)",
+        "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, string name_, string symbol_)"
+      ]
     }
   ],
   "subnet": {
     "name": "fuji",
     "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
     "bridge_manager_address": "0x2741259D3BA96505Fe694f0b7cCE46865A965389",
-    "oracle": "0xe149B049e000Ce3116658ab2b43ca8D8733518DF"
+    "oracle": "0xe149B049e000Ce3116658ab2b43ca8D8733518DF",
+    "abi": [
+      "event BridgeToMainnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_)",
+      "function bridgeToMainnet(address asset, address user, uint256 amount) public",
+      "function approve(address spender, uint256 amount) public returns (bool)",
+      "function bridgeToSubnet(address asset, address user, uint256 amount, string memory name_, string memory symbol_) public",
+      "function updateMultiple(address[] memory tokens, uint256[] memory prices) external",
+      "function price(address) view returns (uint256)",
+      "function subnetAddresses(address) view returns (address)",
+    ]
   }
 }
