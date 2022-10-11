@@ -22,7 +22,7 @@ contract ExposureMainnetBridge is Ownable, Pausable {
         emit BridgeToSubnet(msg.sender, asset, amount, IERC20Metadata(asset).name(), IERC20Metadata(asset).symbol());
     }
 
-    function bridgeToMainnet(uint256 amount, address asset, address user) public onlyOwner whenNotPaused {
+    function bridgeToMainnet(address asset, address user, uint256 amount) public onlyOwner whenNotPaused {
         emit BridgeToMainnet(msg.sender, asset, amount, IERC20Metadata(asset).name(), IERC20Metadata(asset).symbol());
         IERC20(asset).transfer(user, amount);
     }

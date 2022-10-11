@@ -5,53 +5,30 @@ const SubnetOracle = artifacts.require("ExposureSubnetOracle");
 const TestToken = artifacts.require("TestToken");
 
 contract("Bridge", (accounts) => {
-  it("Should create a bridge request on mainnet", async () => {
+  it("Should create a bridgeToSubnet request on mainnet", async () => {
     const token = await TestToken.deployed();
     const mainnetBridge = await MainnetBridge.deployed()
-    token.approve.call(mainnetBridge.address, 1)
-
-    // assert.equal(
-    //   metaCoinEthBalance,
-    //   2 * metaCoinBalance,
-    //   "Library function returned unexpected function, linkage may be broken"
-    // );
+    await token.approve(mainnetBridge.address, 1, { from: accounts[0] })
+    await mainnetBridge.bridgeToSubnet(1, token.address, { from: accounts[0] })
   });
-  // it("should send coin correctly", async () => {
-  //   const metaCoinInstance = await MetaCoin.deployed();
-  //
-  //   // Setup 2 accounts.
-  //   const accountOne = accounts[0];
-  //   const accountTwo = accounts[1];
-  //
-  //   // Get initial balances of first and second account.
-  //   const accountOneStartingBalance = (
-  //     await metaCoinInstance.getBalance.call(accountOne)
-  //   ).toNumber();
-  //   const accountTwoStartingBalance = (
-  //     await metaCoinInstance.getBalance.call(accountTwo)
-  //   ).toNumber();
-  //
-  //   // Make transaction from first account to second.
-  //   const amount = 10;
-  //   await metaCoinInstance.sendCoin(accountTwo, amount, { from: accountOne });
-  //
-  //   // Get balances of first and second account after the transactions.
-  //   const accountOneEndingBalance = (
-  //     await metaCoinInstance.getBalance.call(accountOne)
-  //   ).toNumber();
-  //   const accountTwoEndingBalance = (
-  //     await metaCoinInstance.getBalance.call(accountTwo)
-  //   ).toNumber();
-  //
-  //   assert.equal(
-  //     accountOneEndingBalance,
-  //     accountOneStartingBalance - amount,
-  //     "Amount wasn't correctly taken from the sender"
-  //   );
-  //   assert.equal(
-  //     accountTwoEndingBalance,
-  //     accountTwoStartingBalance + amount,
-  //     "Amount wasn't correctly sent to the receiver"
-  //   );
-  // });
+  it("Should fulfill bridgeToSubnet request on subnet", async () => {
+    const token = await TestToken.deployed();
+    const subnetBridge = await SubnetBridge.deployed()
+    await subnetBridge.bridgeToSubnet(token.address, accounts[0], 1, "test", "test", { from: accounts[0] })
+    let subnetToken = await subnetBridge.subnetAddresses.call(token.address)
+    expect(subnetToken != "0x0000000000000000000000000000000000000000")
+  });
+  it("Should create a bridgeToMainnet request on subnet", async () => {
+    const token = await TestToken.deployed();
+    const subnetBridge = await SubnetBridge.deployed()
+    let _subnetToken = await subnetBridge.subnetAddresses.call(token.address)
+    const subnetToken = await TestToken.at(_subnetToken);
+    await subnetToken.approve(subnetBridge.address, 1, { from: accounts[0] })
+    await subnetBridge.bridgeToMainnet(token.address, accounts[0], 1, { from: accounts[0] })
+  });
+  it("Should fulfill bridgeToMainnet request on mainnet", async () => {
+    const token = await TestToken.deployed();
+    const mainnetBridge = await MainnetBridge.deployed()
+    await mainnetBridge.bridgeToMainnet(token.address, accounts[0], 1, { from: accounts[0] })
+  });
 });
