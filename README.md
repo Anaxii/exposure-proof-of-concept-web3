@@ -7,4 +7,10 @@ demonstration purposes and should not be used for prod.<p>
 <p>npm test --runInBand<br/>--runInBand is required to run tests sequentially (avoid nonce errors)</p>
 <h2>Truffle directory</h2>
 <p>All PoC contracts and their tests to ensure they are in working order.</p>
+<h3>Truffle Testing</h3>
+<p>
+1. Start a ganache network on 127.0.0.1:8545<br/>
+2. run `truffle migrate`<br/>
+3. run `truffle test`
+</p>
 

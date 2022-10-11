@@ -5,7 +5,7 @@ import "../../Util/Ownable.sol";
 import "../../Util/Pausable.sol";
 import "../../Util/IERC20Metadata.sol";
 
-contract ExposureBridge is Ownable, Pausable {
+contract ExposureMainnetBridge is Ownable, Pausable {
 
     mapping(address => bool) public isAllowed;
 

@@ -6,7 +6,7 @@ import "../../Util/Pausable.sol";
 import "../../Util/IERC20.sol";
 import "./ExposureSubnetERC20.sol";
 
-contract ExposureSubnetBridgeManager is Ownable, Pausable {
+contract ExposureSubnetBridge is Ownable, Pausable {
 
     event BridgeToSubnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_);
     event BridgeToMainnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_);
