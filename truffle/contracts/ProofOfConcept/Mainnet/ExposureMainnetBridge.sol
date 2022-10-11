@@ -16,6 +16,14 @@ contract ExposureMainnetBridge is Ownable, Pausable {
         isAllowed[msg.sender] = true;
     }
 
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     function bridgeToSubnet(uint256 amount, address asset) public whenNotPaused {
         require(isAllowed[msg.sender], "User is not KYC approved");
         IERC20(asset).transferFrom(msg.sender, address(this), amount);

@@ -14,6 +14,14 @@ contract ExposureSubnetBridge is Ownable, Pausable {
     mapping(address => address) public mainnetAddresses;
     mapping(address => address) public subnetAddresses;
 
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     function bridgeToSubnet(address asset, address user, uint256 amount, string memory name_, string memory symbol_) public onlyOwner whenNotPaused {
         if (subnetAddresses[asset] == address(0)) {
             ExposureSubnetERC20 token = new ExposureSubnetERC20(name_, symbol_);
