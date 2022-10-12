@@ -229,3 +229,65 @@ contract("The Bridge checks for duplicates", (accounts) => {
   });
 
 });
+
+contract("requestedBridgeInfo and completedBridgeInfo info is accurate for bridge transactions", (accounts) => {
+  it("bridgeToSubnet request on mainnet tracking is equal to the request input", async () => {
+    const token = await TestToken.deployed();
+    const mainnetBridge = await MainnetBridge.deployed()
+
+    await token.approve(mainnetBridge.address, 1, {from: accounts[0]})
+    await mainnetBridge.bridgeToSubnet(1, token.address, {from: accounts[0]})
+    let _swapid = await mainnetBridge.bridgeRequestID.call()
+    swapid = _swapid.toString()
+    console.log(swapid)
+
+    let info = await mainnetBridge.requestedBridgeInfo.call(Number(swapid) - 1)
+    console.log(swapid)
+
+    expect(info.id.toString() == (Number(swapid) - 1).toString() && info.user == accounts[0] && info.amount.toString() == "1" && info.asset == token.address)
+  });
+  it("Should fulfill bridgeToSubnet request on subnet and accurately save the input data into completed requests", async () => {
+    console.log(swapid)
+
+    const token = await TestToken.deployed();
+    const subnetBridge = await SubnetBridge.deployed()
+
+    await subnetBridge.bridgeToSubnet(token.address, accounts[0], 1, (Number(swapid) - 1).toString(), "test", "test", {from: accounts[0]})
+
+    let info = await subnetBridge.completedBridgeInfo.call(Number(swapid) - 1)
+    expect(info.id.toString() == (Number(swapid) - 1).toString() && info.user == accounts[0] && info.amount.toString() == "1" && info.asset == token.address)
+  });
+  it("Should verify bridgeTransactionID is marked as complete", async () => {
+    const subnetBridge = await SubnetBridge.deployed()
+    let val = await subnetBridge.bridgeRequestIsComplete.call((Number(swapid) - 1).toString())
+    expect(val)
+  });
+  it("Should create a bridgeToMainnet request on subnet and accurately save the input data into completed requests", async () => {
+    const token = await TestToken.deployed();
+    const subnetBridge = await SubnetBridge.deployed()
+    let _subnetToken = await subnetBridge.subnetAddresses.call(token.address)
+    const subnetToken = await TestToken.at(_subnetToken);
+
+    await subnetToken.approve(subnetBridge.address, 1, {from: accounts[0]})
+    await subnetBridge.bridgeToMainnet(token.address, 1, {from: accounts[0]})
+    let _swapid = await subnetBridge.bridgeRequestID.call()
+    swapid = _swapid.toString()
+
+    let info = await subnetBridge.requestedBridgeInfo.call(Number(swapid) - 1)
+    expect(info.id.toString() == (Number(swapid) - 1).toString() && info.user == accounts[0] && info.amount.toString() == "1" && info.asset == token.address)
+  });
+  it("Should fulfill bridgeToMainnet request on mainnet and accurately save the input data into completed requests", async () => {
+    const token = await TestToken.deployed();
+    const mainnetBridge = await MainnetBridge.deployed()
+
+    await mainnetBridge.bridgeToMainnet(token.address, accounts[0], 1, swapid, {from: accounts[0]})
+
+    let info = await mainnetBridge.completedBridgeInfo.call(Number(swapid) - 1)
+    expect(info.id.toString() == (Number(swapid) - 1).toString() && info.user == accounts[0] && info.amount.toString() == "1" && info.asset == token.address)
+  });
+  it("Should verify bridgeTransactionID is marked as complete ", async () => {
+    const mainnetBridge = await MainnetBridge.deployed()
+    let val = await mainnetBridge.bridgeRequestIsComplete.call((Number(swapid) - 1).toString())
+    expect(val)
+  });
+});
