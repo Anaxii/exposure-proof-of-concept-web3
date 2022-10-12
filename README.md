@@ -10,7 +10,13 @@ demonstration purposes and should not be used for prod.<p>
 <h3>Truffle Testing</h3>
 <p>
 1. Start a ganache network on 127.0.0.1:8545<br/>
-2. run `truffle migrate`<br/>
-3. run `truffle test`
+2. run 
+```
+truffle migrate
+```<br/>
+3. run 
+```
+truffle test
+```
 </p>
 
