@@ -9,6 +9,25 @@ export default class Mainnet extends Network {
         this.monitor()
     }
 
+    private async monitor() {
+        try {
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            contract.on("BridgeToSubnet", (user: any, asset: any, amount: any, _bridgeRequestID: any, assetName: any, assetSymbol: any, event: any) => {
+                this.eventHandler.emit('BridgeToSubnet', {
+                    network: this.config,
+                    user,
+                    asset,
+                    amount: amount.toString(),
+                    _bridgeRequestID: _bridgeRequestID.toString(),
+                    assetName,
+                    assetSymbol
+                });
+            });
+        } catch {
+            process.exit()
+        }
+    }
+
     async bridgeToSubnet(amount: string, address: string) {
         const signer = new ethers.Wallet(this.privateKey, this.provider)
         try {
@@ -29,16 +48,17 @@ export default class Mainnet extends Network {
         }
     }
 
-    async bridgeToMainnet(asset: string, user: string, amount: string, symbol: string, network: string) {
+    async bridgeToMainnet(asset: string, user: string, amount: string, _bridgeRequestID: string, symbol: string, network: string) {
         try {
             const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
-            let tx = await contractWithSigner.bridgeToMainnet(amount, asset, user)
+            let tx = await contractWithSigner.bridgeToMainnet(asset, user, amount, _bridgeRequestID)
             await tx.wait(2)
-            console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user}`)
+            console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user} (requestID: ${_bridgeRequestID})`)
             return true
-        } catch {
+        } catch (err: any) {
+            console.log(err)
             return false
         }
     }
@@ -80,24 +100,5 @@ export default class Mainnet extends Network {
                 return ""
             }
         }
-    }
-
-    private async monitor() {
-        try {
-            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
-            contract.on("BridgeToSubnet", (user: any, asset: any, amount: any, assetName: any, assetSymbol: any, event: any) => {
-                this.eventHandler.emit('BridgeToSubnet', {
-                    network: this.config,
-                    user,
-                    asset,
-                    amount: amount.toString(),
-                    assetName,
-                    assetSymbol
-                });
-            });
-        } catch {
-            process.exit()
-        }
-
     }
 }

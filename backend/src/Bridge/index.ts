@@ -24,11 +24,11 @@ export default async function Swap(eventHandler: any, config: Config, subnet: Su
 
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);
-        subnet.bridgeToSubnet(data.asset, data.user, data.amount, data.assetName, data.assetSymbol)
+        subnet.bridgeToSubnet(data.asset, data.user, data.amount, data._bridgeRequestID, data.assetName, data.assetSymbol)
         checkTokenList(data.assetSymbol, data.asset, data.network.name, eventHandler)
     })
     eventHandler.on('BridgeToMainnet', function (data: any) {
         console.log('ToMainnet', data);
-        networks[data.network.name].bridgeToMainnet(data.assetMainnet, data.user, data.amount, data.assetSymbol, data.network.name)
+        networks[data.network.name].bridgeToMainnet(data.asset, data.user, data.amount, data._bridgeRequestID, data.assetSymbol, data.network.name)
     })
 }

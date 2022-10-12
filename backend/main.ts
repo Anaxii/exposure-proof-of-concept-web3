@@ -21,6 +21,6 @@ const events = require('events');
    }
 
    Swap(eventHandler, config, subnet, networks)
-   Oracle(eventHandler, config, subnet, networks)
+   // Oracle(eventHandler, config, subnet, networks)
 }())
 

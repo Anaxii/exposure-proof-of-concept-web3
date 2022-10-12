@@ -12,12 +12,12 @@ export default class Subnet extends Network {
     private async monitor() {
         try {
             const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
-            contract.on("BridgeToMainnet", (user: any, assetMainnet: any, assetSubnet: any, amount: any, assetName: any, assetSymbol: any, event: any) => {
+            contract.on("BridgeToMainnet", (user: any, asset: any, amount: any, _bridgeRequestID: any, assetName: any, assetSymbol: any, event: any) => {
                 this.eventHandler.emit('BridgeToMainnet', {
                     network: this.config,
+                    asset,
                     user,
-                    assetMainnet,
-                    assetSubnet,
+                    _bridgeRequestID: _bridgeRequestID.toString(),
                     amount: amount.toString(),
                     assetName,
                     assetSymbol
@@ -43,15 +43,15 @@ export default class Subnet extends Network {
         }
     }
 
-    async bridgeToSubnet(asset: string, user: string, amount: string, assetName: string, assetSymbol: string) {
+    async bridgeToSubnet(asset: string, user: string, amount: string, _bridgeRequestID: string, assetName: string, assetSymbol: string) {
         const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
         try {
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
 
-            let tx = await contractWithSigner.bridgeToSubnet(asset, user, amount, assetName, assetSymbol)
+            let tx = await contractWithSigner.bridgeToSubnet(asset, user, amount, _bridgeRequestID, assetName, assetSymbol)
             await tx.wait(2)
-            console.log(`Bridged ${amount} (1e18) ${assetSymbol} to the subnet for ${user}`)
+            console.log(`Bridged ${amount} (1e18) ${assetSymbol} to the subnet for ${user} (requestID: ${_bridgeRequestID})`)
             return true
         } catch (err: any) {
             console.log(err)

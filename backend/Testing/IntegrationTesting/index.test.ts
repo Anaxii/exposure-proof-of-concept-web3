@@ -11,12 +11,12 @@ let example_config: Config = {
         {
             "name": "fuji",
             "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-            "bridge_address": "0x78a8D646Ebcc88465c67f82d664776a68d5CB0dd",
-            "oracle": "0x8465670D1B79E0708c2880AC21ef73Ad54576f79",
+            "bridge_address": "0x5f024972Fa6F59255AD8BDC289262930ea6A7261",
+            "oracle": "0x92fb0Bfcd92b17f646f4a14b03Acb44869B62c2d",
             "abi": [
-                "function bridgeToSubnet(uint256 amount, address asset) public",
+                "function bridgeToSubnet(uint256 amount, address asset) public returns (uint256)",
                 "function approve(address spender, uint256 amount) public returns (bool)",
-                "function bridgeToMainnet(uint256 amount, address asset, address user) public",
+                "function bridgeToMainnet(address asset, address user, uint256 amount, uint256 _swapID) public returns (address)",
                 "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
                 "function price(address) view returns (uint256)",
                 "function factory() external pure returns (address)",
@@ -29,16 +29,20 @@ let example_config: Config = {
     "subnet": {
         "name": "fuji",
         "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-        "bridge_manager_address": "0x2741259D3BA96505Fe694f0b7cCE46865A965389",
-        "oracle": "0xe149B049e000Ce3116658ab2b43ca8D8733518DF",
+        "bridge_manager_address": "0x862355f4d23D21E77aEaE24529819CBdA0A45858",
+        "oracle": "0x665a3a94a52C27099B43995001F1e5aBde058D2e",
         "abi": [
             "event BridgeToMainnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_)",
-            "function bridgeToMainnet(address asset, address user, uint256 amount) public",
+            "function bridgeToMainnet(address asset, uint256 amount) public returns (uint256)",
             "function approve(address spender, uint256 amount) public returns (bool)",
-            "function bridgeToSubnet(address asset, address user, uint256 amount, string memory name_, string memory symbol_) public",
+            "function bridgeToSubnet(address asset, address user, uint256 amount, uint256 _swapID, string memory name_, string memory symbol_) public returns (address)",
             "function updateMultiple(address[] memory tokens, uint256[] memory prices) external",
             "function price(address) view returns (uint256)",
+            "function updateMultipleMarketCap(address[] memory tokens, uint256[] memory mcaps) external",
+            "function updateMarketCap(address mainnetToken, uint256 _mcap) public returns (uint256)",
             "function subnetAddresses(address) view returns (address)",
+            "function burnAsset(address _token, uint256 _amount) public",
+            "function mintAsset(address _token, uint256 _amount) public"
         ]
     }
 }
@@ -148,12 +152,12 @@ describe("The app can detect bridge requests and fulfill swaps", () => {
     });
 
     test('The app can fulfill subnet bridge requests', async () => {
-        let success = await subnet.bridgeToSubnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token)
+        let success = await subnet.bridgeToSubnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token, Math.floor(Math.random() * 1000000000).toString())
         expect(success);
     });
 
     test('The app can fulfill mainnet bridge requests', async () => {
-        let success = await networks['fuji'].bridgeToMainnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token)
+        let success = await networks['fuji'].bridgeToMainnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token, Math.floor(Math.random() * 1000000000).toString())
         expect(success);
     });
 });
