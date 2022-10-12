@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import '../../../Util/IUniswapV2Pair.sol';
 import "../../../Util/IERC20Metadata.sol";
 import "../../../Util/Ownable.sol";
+import "../../../Uniswap/IUniswapV2Router01.sol";
 
 contract ExposureMainnetOracle is Ownable {
 
@@ -58,6 +59,18 @@ contract ExposureMainnetOracle is Ownable {
         emit UpdatedPrice(_price, tokenIn, tokenOut, pair);
 
         return _price;
+    }
+
+    function authorizedTrade(address router, address[] memory path, uint256 amountToSell, uint256 maxSlippage) external onlyOwner {
+        uint256[] memory amountOutMins = IUniswapV2Router01(router).getAmountsOut(amountToSell, path);
+        uint256 _out = amountOutMins[amountOutMins.length - 1];
+        IUniswapV2Router01(router).swapExactTokensForTokens(
+            amountToSell,
+            _out - ((_out * maxSlippage) / 1e18),
+            path,
+            address(this),
+            block.timestamp + 40 seconds
+        );
     }
 
     /**
