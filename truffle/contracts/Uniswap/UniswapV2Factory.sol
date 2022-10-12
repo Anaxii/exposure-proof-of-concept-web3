@@ -17,17 +17,17 @@ interface IUniswapV2Factory {
     function feeToSetter() external view returns (address);
 
     function getPair(address tokenA, address tokenB)
-        external
-        view
-        returns (address pair);
+    external
+    view
+    returns (address pair);
 
     function allPairs(uint256) external view returns (address pair);
 
     function allPairsLength() external view returns (uint256);
 
     function createPair(address tokenA, address tokenB)
-        external
-        returns (address pair);
+    external
+    returns (address pair);
 
     function setFeeTo(address) external;
 
@@ -35,12 +35,12 @@ interface IUniswapV2Factory {
 }
 
 interface IUniswapV2Pair {
-//    event Approval(
-//        address indexed owner,
-//        address indexed spender,
-//        uint256 value
-//    );
-//    event Transfer(address indexed from, address indexed to, uint256 value);
+    //    event Approval(
+    //        address indexed owner,
+    //        address indexed spender,
+    //        uint256 value
+    //    );
+    //    event Transfer(address indexed from, address indexed to, uint256 value);
 
     function name() external pure returns (string memory);
 
@@ -53,9 +53,9 @@ interface IUniswapV2Pair {
     function balanceOf(address owner) external view returns (uint256);
 
     function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
+    external
+    view
+    returns (uint256);
 
     function approve(address spender, uint256 value) external returns (bool);
 
@@ -67,7 +67,7 @@ interface IUniswapV2Pair {
         uint256 value
     ) external returns (bool);
 
-//    function DOMAIN_SEPARATOR() external view returns (bytes32);
+    //    function DOMAIN_SEPARATOR() external view returns (bytes32);
 
     function PERMIT_TYPEHASH() external pure returns (bytes32);
 
@@ -83,22 +83,22 @@ interface IUniswapV2Pair {
         bytes32 s
     ) external;
 
-//    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
-//    event Burn(
-//        address indexed sender,
-//        uint256 amount0,
-//        uint256 amount1,
-//        address indexed to
-//    );
-//    event Swap(
-//        address indexed sender,
-//        uint256 amount0In,
-//        uint256 amount1In,
-//        uint256 amount0Out,
-//        uint256 amount1Out,
-//        address indexed to
-//    );
-//    event Sync(uint112 reserve0, uint112 reserve1);
+    //    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+    //    event Burn(
+    //        address indexed sender,
+    //        uint256 amount0,
+    //        uint256 amount1,
+    //        address indexed to
+    //    );
+    //    event Swap(
+    //        address indexed sender,
+    //        uint256 amount0In,
+    //        uint256 amount1In,
+    //        uint256 amount0Out,
+    //        uint256 amount1Out,
+    //        address indexed to
+    //    );
+    //    event Sync(uint112 reserve0, uint112 reserve1);
 
     function MINIMUM_LIQUIDITY() external pure returns (uint256);
 
@@ -109,13 +109,13 @@ interface IUniswapV2Pair {
     function token1() external view returns (address);
 
     function getReserves()
-        external
-        view
-        returns (
-            uint112 reserve0,
-            uint112 reserve1,
-            uint32 blockTimestampLast
-        );
+    external
+    view
+    returns (
+        uint112 reserve0,
+        uint112 reserve1,
+        uint32 blockTimestampLast
+    );
 
     function price0CumulativeLast() external view returns (uint256);
 
@@ -126,8 +126,8 @@ interface IUniswapV2Pair {
     function mint(address to) external returns (uint256 liquidity);
 
     function burn(address to)
-        external
-        returns (uint256 amount0, uint256 amount1);
+    external
+    returns (uint256 amount0, uint256 amount1);
 
     function swap(
         uint256 amount0Out,
@@ -162,9 +162,9 @@ interface IUniswapV2ERC20 {
     function balanceOf(address owner) external view returns (uint256);
 
     function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
+    external
+    view
+    returns (uint256);
 
     function approve(address spender, uint256 value) external returns (bool);
 
@@ -212,9 +212,9 @@ interface IERC20 {
     function balanceOf(address owner) external view returns (uint256);
 
     function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
+    external
+    view
+    returns (uint256);
 
     function approve(address spender, uint256 value) external returns (bool);
 
@@ -236,7 +236,7 @@ interface IUniswapV2Callee {
     ) external;
 }
 
-contract UniswapV2ERC20 is IUniswapV2ERC20 {
+contract UniswapV2ERC20 {
     using SafeMath for uint256;
 
     string public constant name = "Uniswap V2";
@@ -249,15 +249,15 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     bytes32 public DOMAIN_SEPARATOR;
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH =
-        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
     mapping(address => uint256) public nonces;
 
-//    event Approval(
-//        address indexed owner,
-//        address indexed spender,
-//        uint256 value
-//    );
-//    event Transfer(address indexed from, address indexed to, uint256 value);
+    //    event Approval(
+    //        address indexed owner,
+    //        address indexed spender,
+    //        uint256 value
+    //    );
+    //    event Transfer(address indexed from, address indexed to, uint256 value);
 
     constructor() public {
         uint256 chainId;
@@ -277,13 +277,13 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     function _mint(address to, uint256 value) internal {
         totalSupply = totalSupply.add(value);
         balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(address(0), to, value);
+        // emit Transfer(address(0), to, value);
     }
 
     function _burn(address from, uint256 value) internal {
         balanceOf[from] = balanceOf[from].sub(value);
         totalSupply = totalSupply.sub(value);
-        emit Transfer(from, address(0), value);
+        // emit Transfer(from, address(0), value);
     }
 
     function _approve(
@@ -292,7 +292,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
         uint256 value
     ) private {
         allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
+        // emit Approval(owner, spender, value);
     }
 
     function _transfer(
@@ -302,7 +302,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     ) private {
         balanceOf[from] = balanceOf[from].sub(value);
         balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(from, to, value);
+        // emit Transfer(from, to, value);
     }
 
     function approve(address spender, uint256 value) external returns (bool) {
@@ -370,7 +370,7 @@ contract UniswapV2Pair is UniswapV2ERC20 {
 
     uint256 public constant MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR =
-        bytes4(keccak256(bytes("transfer(address,uint256)")));
+    bytes4(keccak256(bytes("transfer(address,uint256)")));
 
     address public factory;
     address public token0;
@@ -393,13 +393,13 @@ contract UniswapV2Pair is UniswapV2ERC20 {
     }
 
     function getReserves()
-        public
-        view
-        returns (
-            uint112 _reserve0,
-            uint112 _reserve1,
-            uint32 _blockTimestampLast
-        )
+    public
+    view
+    returns (
+        uint112 _reserve0,
+        uint112 _reserve1,
+        uint32 _blockTimestampLast
+    )
     {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
@@ -464,11 +464,11 @@ contract UniswapV2Pair is UniswapV2ERC20 {
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
             // * never overflows, and + overflow is desired
             price0CumulativeLast +=
-                uint256(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) *
-                timeElapsed;
+            uint256(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) *
+            timeElapsed;
             price1CumulativeLast +=
-                uint256(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) *
-                timeElapsed;
+            uint256(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) *
+            timeElapsed;
         }
         reserve0 = uint112(balance0);
         reserve1 = uint112(balance1);
@@ -478,8 +478,8 @@ contract UniswapV2Pair is UniswapV2ERC20 {
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
     function _mintFee(uint112 _reserve0, uint112 _reserve1)
-        private
-        returns (bool feeOn)
+    private
+    returns (bool feeOn)
     {
         address feeTo = IUniswapV2Factory(factory).feeTo();
         feeOn = feeTo != address(0);
@@ -529,9 +529,9 @@ contract UniswapV2Pair is UniswapV2ERC20 {
 
     // this low-level function should be called from a contract which performs important safety checks
     function burn(address to)
-        external
-        lock
-        returns (uint256 amount0, uint256 amount1)
+    external
+    lock
+    returns (uint256 amount0, uint256 amount1)
     {
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
         address _token0 = token0; // gas savings
@@ -596,11 +596,11 @@ contract UniswapV2Pair is UniswapV2ERC20 {
             balance1 = IERC20(_token1).balanceOf(address(this));
         }
         uint256 amount0In = balance0 > _reserve0 - amount0Out
-            ? balance0 - (_reserve0 - amount0Out)
-            : 0;
+        ? balance0 - (_reserve0 - amount0Out)
+        : 0;
         uint256 amount1In = balance1 > _reserve1 - amount1Out
-            ? balance1 - (_reserve1 - amount1Out)
-            : 0;
+        ? balance1 - (_reserve1 - amount1Out)
+        : 0;
         require(
             amount0In > 0 || amount1In > 0,
             "UniswapV2: INSUFFICIENT_INPUT_AMOUNT"
@@ -611,7 +611,7 @@ contract UniswapV2Pair is UniswapV2ERC20 {
             uint256 balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
             require(
                 balance0Adjusted.mul(balance1Adjusted) >=
-                    uint256(_reserve0).mul(_reserve1).mul(1000**2),
+                uint256(_reserve0).mul(_reserve1).mul(1000**2),
                 "UniswapV2: K"
             );
         }
@@ -670,13 +670,13 @@ contract UniswapV2Factory {
     }
 
     function createPair(address tokenA, address tokenB)
-        external
-        returns (address pair)
+    external
+    returns (address pair)
     {
         require(tokenA != tokenB, "UniswapV2: IDENTICAL_ADDRESSES");
         (address token0, address token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
+        ? (tokenA, tokenB)
+        : (tokenB, tokenA);
         require(token0 != address(0), "UniswapV2: ZERO_ADDRESS");
         require(
             getPair[token0][token1] == address(0),
