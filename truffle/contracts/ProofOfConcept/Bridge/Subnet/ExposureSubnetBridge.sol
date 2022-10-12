@@ -11,6 +11,7 @@ contract ExposureSubnetBridge is Ownable, Pausable, BridgeTracking {
 
     mapping(address => address) public mainnetAddresses;
     mapping(address => address) public subnetAddresses;
+    mapping(address => bool) public authorizedSubnetTrader;
 
     function pause() external onlyOwner {
         _pause();
@@ -42,6 +43,21 @@ contract ExposureSubnetBridge is Ownable, Pausable, BridgeTracking {
         requestedBridgeInfo[bridgeRequestID - 1] = BridgeTransaction(bridgeRequestID - 1, msg.sender, amount, asset);
         emit BridgeToMainnet(msg.sender, asset, amount, bridgeRequestID - 1, IERC20Metadata(asset).name(), IERC20Metadata(asset).symbol());
         return bridgeRequestID - 1;
+    }
+
+    function updateAuthorizedTrader(address _account, bool status) external onlyOwner {
+        authorizedSubnetTrader[_account] = status;
+    }
+
+    function burnAsset(address _token, uint256 _amount) public {
+        require(authorizedSubnetTrader[msg.sender]);
+        ExposureSubnetERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        ExposureSubnetERC20(_token).burn(address(this), _amount);
+    }
+
+    function mintAsset(address _token, uint256 _amount) public {
+        require(authorizedSubnetTrader[msg.sender]);
+        ExposureSubnetERC20(_token).mint(address(this), _amount);
     }
 
 }
