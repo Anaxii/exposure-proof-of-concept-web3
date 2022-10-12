@@ -57,7 +57,7 @@ contract ExposureManager is Ownable, Manageable {
     /**
       * @dev ExposureOracle address of a DEX router address.
     */
-    mapping(address => address) public oracles;
+    address public oracle;
 
     /**
       * @dev The router for a `tokenPairs[_token]`.
@@ -78,15 +78,11 @@ contract ExposureManager is Ownable, Manageable {
       * @dev Constructor.
       * @param _usdc The token address of USDC
       * @param _oracle The oracles to be used for each item in `_routers`
-      * @param _routers The available routers for trading
     **/
-    constructor(address _usdc, address[] memory _oracle, address[] memory _routers) {
+    constructor(address _usdc, address _oracle) {
         authorizedTransferee[msg.sender] = true;
         usdc = _usdc;
-
-        for (uint i = 0; i < _oracle.length; i++) {
-            oracles[_routers[i]] = _oracle[i];
-        }
+        oracle = _oracle;
     }
 
     /**
@@ -182,7 +178,7 @@ contract ExposureManager is Ownable, Manageable {
      */
     function setOracle(address _oracle, address _router) public {
         require(msg.sender == owner() || msg.sender == manager());
-        oracles[_router] = _oracle;
+        oracle = _oracle;
     }
 
     /**

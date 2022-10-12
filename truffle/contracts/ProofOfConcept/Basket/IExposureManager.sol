@@ -44,7 +44,7 @@ interface IExposureManager {
     /**
       * @dev ExposureOracle address of a DEX router address.
     */
-    function oracles(address _router) external view returns (address);
+    function oracle() external view returns (address);
 
     /**
       * @dev The router for a `tokenPairs[_token]`.
