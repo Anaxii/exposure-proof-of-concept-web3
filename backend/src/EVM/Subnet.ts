@@ -59,14 +59,17 @@ export default class Subnet extends Network {
         }
     }
 
-    async updatePrices(asset: string[], price: string[]) {
+    async updatePrices(asset: string[], price: string[], marketCap: string[]) {
         try {
             const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
             let tx = await contractWithSigner.updateMultiple(asset, price)
             await tx.wait(2)
-            console.log(`Updated some subnet prices (batched)`)
+
+            tx = await contractWithSigner.updateMultipleMarketCap(asset, marketCap)
+            await tx.wait(2)
+            console.log(`Updated some subnet prices & mcaps (batched)`)
             return true
         } catch (err: any) {
             console.log(err)

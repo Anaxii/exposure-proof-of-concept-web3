@@ -1,4 +1,4 @@
-import Swap from "./src/Bridge";
+import Bridge from "./src/Bridge";
 import Oracle from "./src/Oracle";
 import {getJSON} from "./src/util";
 import Mainnet from "./src/EVM/Mainnet";
@@ -20,7 +20,7 @@ const events = require('events');
       networks[config.main_networks[i].name] = new Mainnet(config.main_networks[i], eventHandler, config.private_key)
    }
 
-   Swap(eventHandler, config, subnet, networks)
-   // Oracle(eventHandler, config, subnet, networks)
+   Bridge(eventHandler, config, subnet, networks)
+   Oracle(eventHandler, config, subnet, networks)
 }())
 

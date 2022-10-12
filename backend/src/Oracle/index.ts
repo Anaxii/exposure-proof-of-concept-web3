@@ -26,6 +26,9 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
     const rule = new schedule.RecurrenceRule();
     rule.minute = [0, new schedule.Range(0, 59)];
 
+    await updateMainnetPrices(api_urls, networks)
+    await computePrices(networks)
+    await updateSubnetPrices(subnet)
     schedule.scheduleJob(rule, async () => {
         while (checkingPairs) {
             await sleep(500)
@@ -41,39 +44,61 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
 }
 
 async function computePrices(networks: { [key: string]: Mainnet }) {
-    let tokenPrices: { [key: string]: any } = await loopPairs(networks, "computePrices")
+    let data = await loopPairs(networks, "computePrices")
+    let tokenPrices: { [key: string]: any } = data.tokenPrices
+    let tokenMCAPS: { [key: string]: any } = data.tokenMCAPS
 
     let finalPrices: { [key: string]: any } = {}
+    let finalMCAPS: { [key: string]: any } = {}
     for (const token in tokenPrices) {
         let sum = BigInt(0)
         for (const index in tokenPrices[token]) {
             sum += BigInt(tokenPrices[token][index])
         }
+        if (sum == BigInt(0))
+            continue
+
         finalPrices[token] = (sum / BigInt(tokenPrices[token].length)).toString()
     }
 
+    for (const token in tokenMCAPS) {
+        let sum = BigInt(0)
+        for (const index in tokenMCAPS[token]) {
+            sum += BigInt(tokenMCAPS[token][index])
+        }
+        if (sum == BigInt(0))
+            continue
+
+        finalMCAPS[token] = (sum / BigInt(tokenMCAPS[token].length)).toString()
+    }
+
     writeJSON("prices.json", finalPrices)
+    writeJSON("mcaps.json", finalMCAPS)
 
     console.log("Updated prices")
 }
 
 async function updateSubnetPrices(subnet: Subnet) {
     let prices = getJSON("prices.json")
+    let mcaps = getJSON("mcaps.json")
     let tokens = getJSON("tokens.json")
 
     let tokenList: any[][] = [[]]
     let priceList: any[][] = [[]]
+    let mcapList: any[][] = [[]]
     for (const i in prices) {
         if (tokenList.length > 20) {
             tokenList.push([])
             priceList.push([])
+            mcapList.push([])
         }
         priceList[priceList.length - 1].push(prices[i])
+        mcapList[priceList.length - 1].push(mcaps[i])
         tokenList[tokenList.length - 1].push(tokens[i]['fuji'])
     }
 
     for (const i in tokenList) {
-        let success = await subnet.updatePrices(tokenList[i], priceList[i])
+        let success = await subnet.updatePrices(tokenList[i], priceList[i], mcapList[i])
         if (!success)
             console.log(`Failed to update subnet prices`)
     }
@@ -87,11 +112,13 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
     let routers: any = getJSON("routers.json")
 
     let tokenPrices: { [key: string]: any } = {}
+    let tokenMCAPS: { [key: string]: any } = {}
     let quotePrices: { [key: string]: any } = {}
     let toUpdate: { [key: string]: any[] } = {}
 
     for (const token in tokens) {
         tokenPrices[token] = []
+        tokenMCAPS[token] = []
         for (const network in tokens[token]) {
             if (type == "updateMainnet") {
                 if (!toUpdate[network])
@@ -108,7 +135,10 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
                             quote: tokens[token][network][dex][trading_pair].quote
                         })
                     } else {
-                        let price = await await networks[network].getPrice(tokens[token][network][dex][trading_pair].pair)
+                        let price = await networks[network].getPrice(tokens[token][network][dex][trading_pair].pair)
+                        let mcap = await networks[network].getMCAP(tokens[token][network][dex][trading_pair].pair)
+                        if (price == 0 || mcap == 0 || price == "" || mcap == "")
+                            continue
                         if (!dollarCoins[network][tokens[token][network][dex][trading_pair].quoteName]) {
                             let qp = quotePrices[tokens[token][network][dex][trading_pair].quote]
                             if (!qp) {
@@ -123,9 +153,11 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
                             }
                             quotePrices[tokens[token][network][dex][trading_pair].quote] = qp
                             tokenPrices[token].push((BigInt(price) * BigInt(10 ** 18) / BigInt(qp)).toString())
+                            tokenMCAPS[token].push((BigInt(mcap) * BigInt(10 ** 18) / BigInt(qp)).toString())
                             continue
                         }
                         tokenPrices[token].push(price)
+                        tokenMCAPS[token].push(mcap)
                     }
                 }
             }
@@ -135,13 +167,13 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
     if (type == "updateMainnet") {
         return toUpdate
     } else {
-        return tokenPrices
+        return {tokenPrices, tokenMCAPS}
     }
 }
 
 async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mainnet }) {
 
-    let toUpdate: { [key: string]: any[] } = await loopPairs(networks, "updateMainnet")
+    let toUpdate: any = await loopPairs(networks, "updateMainnet")
     for (const network in toUpdate) {
         for (const batch in toUpdate[network]) {
             let _pairs = []
@@ -187,7 +219,6 @@ async function checkForDEXPairs(networks: { [key: string]: Mainnet }, symbol: an
                 }
         }
         router_pairs[router] = pairs
-
     }
 
     let stored_pairs = getJSON("pairs.json")

@@ -19,6 +19,7 @@ let example_config: Config = {
                 "function bridgeToMainnet(address asset, address user, uint256 amount, uint256 _swapID) public returns (address)",
                 "function updateMultiple(address[] memory pairs, address[] memory tokenIns, address[] memory tokenOuts)",
                 "function price(address) view returns (uint256)",
+                "function marketCap(address) view returns (uint256)",
                 "function factory() external pure returns (address)",
                 "function getPair(address tokenA, address tokenB) external view returns (address pair)",
                 "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, string name_, string symbol_)",
@@ -38,6 +39,7 @@ let example_config: Config = {
             "function bridgeToSubnet(address asset, address user, uint256 amount, uint256 _swapID, string memory name_, string memory symbol_) public returns (address)",
             "function updateMultiple(address[] memory tokens, uint256[] memory prices) external",
             "function price(address) view returns (uint256)",
+            "function marketCap(address) view returns (uint256)",
             "function updateMultipleMarketCap(address[] memory tokens, uint256[] memory mcaps) external",
             "function updateMarketCap(address mainnetToken, uint256 _mcap) public returns (uint256)",
             "function subnetAddresses(address) view returns (address)",
@@ -85,7 +87,7 @@ describe("The network classes can initialize", () => {
 describe("The app can read and set prices", () => {
     let random_price = Math.floor(Math.random() * 100000).toString();
     test('The app can set new prices, read mainnet -> subnet token addresses, and read current subnet prices', async () => {
-        let success = await subnet.updatePrices([example_token.tokenAddress], [random_price])
+        let success = await subnet.updatePrices([example_token.tokenAddress], [random_price], [random_price])
         expect(success);
     });
 

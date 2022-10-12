@@ -88,6 +88,16 @@ export default class Mainnet extends Network {
         }
     }
 
+    async getMCAP(pair: string) {
+        try {
+            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
+            let price = await contract.marketCap(pair)
+            return price.toString()
+        } catch {
+            return ""
+        }
+    }
+
     async getPairAddress(router: string, token: string, quote: string) {
         try {
             const routerContract = new ethers.Contract(router, this.abi, this.provider);
