@@ -5,11 +5,9 @@ import "../../Util/Ownable.sol";
 import "../../Util/Pausable.sol";
 import "../../Util/IERC20.sol";
 import "./ExposureSubnetERC20.sol";
+import "../BridgeTracking.sol";
 
-contract ExposureSubnetBridge is Ownable, Pausable {
-
-    event BridgeToSubnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_);
-    event BridgeToMainnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_);
+contract ExposureSubnetBridge is Ownable, Pausable, BridgeTracking {
 
     mapping(address => address) public mainnetAddresses;
     mapping(address => address) public subnetAddresses;
@@ -22,20 +20,28 @@ contract ExposureSubnetBridge is Ownable, Pausable {
         _unpause();
     }
 
-    function bridgeToSubnet(address asset, address user, uint256 amount, string memory name_, string memory symbol_) public onlyOwner whenNotPaused {
+    function bridgeToSubnet(address asset, address user, uint256 amount, uint256 _swapID, string memory name_, string memory symbol_) public onlyOwner whenNotPaused returns (address subnetToken) {
+        require(!bridgeRequestIsComplete[_swapID], "Swap already fulfilled");
+        require(user != address(0));
         if (subnetAddresses[asset] == address(0)) {
             ExposureSubnetERC20 token = new ExposureSubnetERC20(name_, symbol_);
             subnetAddresses[asset] = address(token);
             mainnetAddresses[address(token)] = asset;
         }
+        bridgeRequestIsComplete[_swapID] = true;
         ExposureSubnetERC20(subnetAddresses[asset]).mint(user, amount);
-        emit BridgeToSubnet(user, asset, subnetAddresses[asset], amount, name_, symbol_);
+        completedBridgeInfo[_swapID] = BridgeTransaction(_swapID, user, amount, asset);
+        emit BridgeToSubnet(user, asset, amount, _swapID, name_, symbol_);
+        return subnetAddresses[asset];
     }
 
-    function bridgeToMainnet(address asset, address user, uint256 amount) public whenNotPaused {
-        ExposureSubnetERC20(subnetAddresses[asset]).transferFrom(user, address(this), amount);
+    function bridgeToMainnet(address asset, uint256 amount) public whenNotPaused returns (uint256) {
+        bridgeRequestID++;
+        ExposureSubnetERC20(subnetAddresses[asset]).transferFrom(msg.sender, address(this), amount);
         ExposureSubnetERC20(subnetAddresses[asset]).burn(address(this), amount);
-        emit BridgeToMainnet(user, asset, subnetAddresses[asset], amount, IERC20Metadata(asset).name(), IERC20Metadata(asset).symbol());
+        requestedBridgeInfo[bridgeRequestID - 1] = BridgeTransaction(bridgeRequestID - 1, msg.sender, amount, asset);
+        emit BridgeToMainnet(msg.sender, asset, amount, bridgeRequestID - 1, IERC20Metadata(asset).name(), IERC20Metadata(asset).symbol());
+        return bridgeRequestID - 1;
     }
 
 }
