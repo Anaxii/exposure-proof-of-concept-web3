@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../../Util/Ownable.sol";
-import "./IExposureSubnetBridgeManager.sol";
+import "../../../Util/Ownable.sol";
+import "../../Bridge/Subnet/IExposureSubnetBridge.sol";
 
 contract ExposureSubnetOracle is Ownable {
 
-    IExposureSubnetBridgeManager public exposureSubnetBridgeManager;
+    IExposureSubnetBridge public exposureSubnetBridgeManager;
     mapping(address => uint256) public price;
 
     event UpdatedPrice(uint256 indexed price, address indexed subnetToken, address indexed mainnetToken);
 
     constructor(address bridgeManager) {
-        exposureSubnetBridgeManager = IExposureSubnetBridgeManager(bridgeManager);
+        exposureSubnetBridgeManager = IExposureSubnetBridge(bridgeManager);
     }
 
     function updateMultiple(address[] memory tokens, uint256[] memory prices) external {
