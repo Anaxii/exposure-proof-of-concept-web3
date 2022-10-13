@@ -9,6 +9,7 @@ import "../../../Uniswap/IUniswapV2Router01.sol";
 contract ExposureMainnetOracle is Ownable {
 
     mapping(address => uint256) public price;
+    mapping(address => uint256) public marketCap;
     mapping(address => uint256) public liquidity;
 
     /**
@@ -54,6 +55,7 @@ contract ExposureMainnetOracle is Ownable {
             _price = reserve1 * 1e18 / reserve0;
         }
 
+        marketCap[pair] = (_price * (getCirculatingTokenSupply(tokenIn))) / 1e18;
         price[pair] = _price;
         liquidity[pair] = IERC20(tokenIn).balanceOf(pair);
         emit UpdatedPrice(_price, tokenIn, tokenOut, pair);

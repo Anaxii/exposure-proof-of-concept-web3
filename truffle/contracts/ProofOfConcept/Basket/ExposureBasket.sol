@@ -8,7 +8,8 @@ import "../../Uniswap/IPair.sol";
 import "../../Uniswap/IUniswapV2Router01.sol";
 import "../../Util/ERC20.sol";
 import "../../Util/Ownable.sol";
-import "./IExposureManager.sol";
+import "../Bridge/Subnet/IExposureSubnetBridge.sol";
+import "../Oracle/Subnet/IExposureSubnetOracle.sol";
 
 /**
   *  @title Exposure Basket
@@ -28,38 +29,33 @@ contract ExposureBasket is ERC20, Ownable {
     /**
      * @dev tokenPortions is the amount of tokens one basket share represents.
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenPortions;
+    mapping(uint256 => mapping(address => uint256)) public tokenPortions;
 
     /**
      * @dev tokenMarketCaps stores each tokens market cap for determining its weight.
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenMarketCaps;
+    mapping(uint256 => mapping(address => uint256)) public tokenMarketCaps;
 
     /**
      * @dev tokenPrices stores the token price to determine the amount
      * of tokens to buy and sell during a rebalance..
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenPrices;
+    mapping(uint256 => mapping(address => uint256)) public tokenPrices;
 
     /**
      * @dev tokenBuyAmount is the target amount of tokens to buy during a rebalance.
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenBuyAmount;
+    mapping(uint256 => mapping(address => uint256)) public tokenBuyAmount;
 
     /**
      * @dev tokenSellAmount is the number of tokens the basket will sell for USDC during a rebalance.
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenSellAmount;
+    mapping(uint256 => mapping(address => uint256)) public tokenSellAmount;
 
     /**
      * @dev tokenWeights stores the percentage of capital the basket allocated to each token.
      */
-    mapping(uint256 => mapping(address => uint256)) private tokenWeights;
-
-    /**
-     * @dev bypassTrade allows a token trades to be skipped during a rebalance.
-     */
-    mapping(uint256 => mapping(address => bool)) private bypassTrade;
+    mapping(uint256 => mapping(address => uint256)) public tokenWeights;
 
     /**
      * @dev tokens is a list of all the tokens in the basket.
@@ -83,6 +79,8 @@ contract ExposureBasket is ERC20, Ownable {
      */
     uint256 public buyAndSellFromFee;
 
+    address public oracle;
+
     /**
      * @dev epoch is the number of rebalances that have occurred
      */
@@ -99,25 +97,13 @@ contract ExposureBasket is ERC20, Ownable {
      */
     uint256 public rebalanceStep;
 
-    /**
-     * @dev The exposureManager is the middleman that talks to contracts holding
-     * underlying assets and tells it to buy, sell, or transfer.
-     */
-    address private exposureManager;
-
-    /**
-     * @dev XPSRAddress is the XPSR governance token contract address.
-     */
-    address private XPSRAddress;
-
     mapping(address => mapping(uint256 => bool)) private hasBeenAdded;
-    mapping(uint256 => address[]) private finalTokens;
-    mapping(uint256 => address[]) private tokensToBuy;
+    mapping(uint256 => address[]) public finalTokens;
+    mapping(uint256 => address[]) public tokensToBuy;
 
     mapping(uint256 => uint256) private index;
     mapping(uint256 => uint256) private weightIndex;
     mapping(uint256 => uint256) private fixedWeight;
-    mapping(uint256 => uint256) private epochPayout;
     mapping(uint256 => uint256) private feeTiers;
     mapping(address => uint256) private userFeeTier;
     mapping(uint256 => uint256) private rebalancePayoutAmounts;
@@ -126,38 +112,27 @@ contract ExposureBasket is ERC20, Ownable {
     mapping(address => bool) private tokensToRemove;
     mapping(address => bool) private canBeDirectlyTraded;
 
-    uint256 private expenseRatio;
     uint256 private indexDivisor;
     uint256 private maxSlippage;
     uint256 private rebalanceTimer;
-    uint256 public XPSRRequirement;
 
     address private usdc;
     address private feeContract;
 
+    address public bridge;
+
     bool private isLive;
 
     event BasketShareExchange(address indexed from, address[] _tokens, uint256[] amounts, uint256[] fees);
-    event ExpenseRatioPay(uint256 indexed amount, uint256 indexed percentage, address indexed user, address);
+    event TargetPortionsReady(uint256 indexed _epoch, uint256 indexed _maxSlippage);
 
-    /**
-     * @dev Constructor.
-     * @param _name The name of the ERC20 token
-     * @param _symbol The symbol of the ERC20 token
-     * @param _usdc The token address of USDC
-     * @param _owner The admin of the basket granted access to ownerOnly functions
-     * @param _XPSRAddress The contract address of the Exposure token
-     * @param _exposureAssetManager The contract address of the ExposureAssetManager contract for the basket
-     * @dev The ExposureAssetManager contract is the middleman for moving tokens in the basket
-     * for buy, sell, mint, and redeem. Each underlying asset also has its own ExposureAsset contract
-     */
     constructor (
         string memory _name,
         string memory _symbol,
         address _usdc,
         address _owner,
-        address _XPSRAddress,
-        address _exposureAssetManager
+        address _oracle,
+        address _bridge
     )
     ERC20(_name, _symbol)
     {
@@ -174,17 +149,13 @@ contract ExposureBasket is ERC20, Ownable {
         // The maximum slippage amount when trading underlying assets during rebalance
         maxSlippage = 150;
 
-        XPSRAddress = _XPSRAddress;
-        XPSRRequirement = 0;
-
         // The fee for using functions buyFromExposure and sellToExposure
         buyAndSellFromFee = 10;
 
-        // 1% annualized fee deducted during rebalances
-        expenseRatio = 100;
-
-        exposureManager = _exposureAssetManager;
+        oracle = _oracle;
         feeContract = msg.sender;
+
+        bridge = _bridge;
 
         usdc = _usdc;
 
@@ -193,19 +164,6 @@ contract ExposureBasket is ERC20, Ownable {
 
         // Aggregate market caps / indexDivisor = index price
         indexDivisor = 100000000 * 1e18;
-
-        // Percentage of the current expenseRatio payout for calling each rebalanceStep function
-        rebalancePayoutAmounts[0] = 5;
-        rebalancePayoutAmounts[1] = 0;
-        rebalancePayoutAmounts[2] = 0;
-        rebalancePayoutAmounts[3] = 20;
-        rebalancePayoutAmounts[4] = 5;
-        rebalancePayoutAmounts[5] = 25;
-        rebalancePayoutAmounts[6] = 5;
-        rebalancePayoutAmounts[7] = 20;
-        rebalancePayoutAmounts[8] = 15;
-        rebalancePayoutAmounts[9] = 5;
-        rebalancePayoutAmounts[10] = 5;
     }
 
     /**
@@ -231,9 +189,6 @@ contract ExposureBasket is ERC20, Ownable {
         require(rebalanceStep == 0 || rebalanceStep > 6);
         require(totalSupply() + amount <= basketCap);
 
-        if (XPSRRequirement > 0)
-            IERC20(XPSRAddress).transferFrom(msg.sender, address(this), XPSRRequirement);
-
         uint256[] memory _amounts = new uint256[](tokens[epoch].length);
         uint256[] memory _fees = new uint256[](tokens[epoch].length);
         uint256 _fee;
@@ -243,10 +198,6 @@ contract ExposureBasket is ERC20, Ownable {
             _fee = fee(tokenAmount, feeTiers[userFeeTier[msg.sender]]);
 
             IERC20(tokens[epoch][i]).transferFrom(msg.sender, address(this), tokenAmount);
-            IERC20(tokens[epoch][i]).transfer(
-                (IExposureManager(exposureManager).exposureAssetAddresses(tokens[epoch][i])),
-                tokenAmount
-            );
 
             _amounts[i] = tokenAmount;
             _fees[i] = _fee;
@@ -285,9 +236,6 @@ contract ExposureBasket is ERC20, Ownable {
     function burn(uint256 amount, address to) external {
         require(isLive);
         require(rebalanceStep == 0 || rebalanceStep > 7 || basketCap == 0);
-        if (XPSRRequirement > 0) {
-            IERC20(XPSRAddress).transferFrom(msg.sender, address(this), XPSRRequirement);
-        }
 
         uint256 _epoch = epoch;
         if (basketCap == 0) {
@@ -309,7 +257,7 @@ contract ExposureBasket is ERC20, Ownable {
 
         for (uint8 i = 0; i < tokens[_epoch].length; i++) {
             uint256 tokenAmount = (tokenPortions[_epoch][tokens[_epoch][i]] * (newAmount)) / 1e18;
-            IExposureManager(exposureManager).authorizedTransfer(tokens[_epoch][i], to, tokenAmount);
+            IERC20(address(this)).transfer(msg.sender, tokenAmount);
             _amounts[i] = tokenAmount;
         }
         _fees[0] = _shareFee;
@@ -328,7 +276,7 @@ contract ExposureBasket is ERC20, Ownable {
      * - `rebalanceStep` must be 0.
      * - `block.timestamp` must be greater than `rebalanceTimeStamp` set during the last rebalance.
      */
-    function startRebalance() external {
+    function startRebalance() external onlyOwner {
         require(rebalanceStep == 0, "Rebalance Step is not 0.");
         if (!isLive) {
             rebalanceStep = 1;
@@ -340,13 +288,10 @@ contract ExposureBasket is ERC20, Ownable {
             rebalanceTimeStamp[epoch + 1] = block.timestamp + rebalanceTimer;
         } else {
             rebalanceTimeStamp[epoch + 1] = rebalanceTimeStamp[epoch] + rebalanceTimer;
-            epochPayout[epoch + 1] = (block.timestamp - rebalanceTimeStamp[epoch]) * 1e18 / ((365 days)) * expenseRatio / 10000;
         }
 
         rebalanceStep = 3;
         epoch++;
-
-        payoutExpenseRatio(epochPayout[epoch + 1] * rebalancePayoutAmounts[rebalanceStep] / 100);
     }
 
     /**
@@ -405,9 +350,6 @@ contract ExposureBasket is ERC20, Ownable {
         tokens[epoch].push(_token);
         tokensToRemove[_token] = false;
         hasBeenAdded[_token][epoch] = true;
-        canBeDirectlyTraded[_token] = true;
-
-        IExposureManager(exposureManager).batchNewAssetManager(_token, _tokenPairs, pairTypes, oracles, routers);
     }
 
     /**
@@ -425,7 +367,7 @@ contract ExposureBasket is ERC20, Ownable {
         require(rebalanceStep == 0, "Rebalance Step is not 0.");
 
         for (uint256 i = 0; i < _tokens.length; i++) {
-            tokenSellAmount[epoch + 1][_tokens[i]] = IExposureManager(exposureManager).getBalance(_tokens[i]);
+            tokenSellAmount[epoch + 1][_tokens[i]] = IERC20(_tokens[i]).balanceOf(address(this));
             tokensToRemove[_tokens[i]] = true;
             tokenFixedWeight[_tokens[i]] = 0;
         }
@@ -440,7 +382,7 @@ contract ExposureBasket is ERC20, Ownable {
      *
      * - `rebalanceStep` must 3.
      */
-    function updateTokenMarketCap() external {
+    function updateTokenMarketCap() external onlyOwner {
         require(rebalanceStep == 3, "Rebalance Step is not 3.");
 
         if (tokens[epoch].length == 0 && epoch > 0) {
@@ -451,8 +393,8 @@ contract ExposureBasket is ERC20, Ownable {
         }
 
         for (uint256 i = 0; i < tokens[epoch].length; i++) {
-            tokenMarketCaps[epoch][tokens[epoch][i]] = IExposureManager(exposureManager).getMarketCap(tokens[epoch][i]);
-            updateTokenPrice(tokens[epoch][i]);
+            tokenMarketCaps[epoch][tokens[epoch][i]] = IExposureSubnetOracle(oracle).marketCap(tokens[epoch][i]);
+            tokenPrices[epoch][tokens[epoch][i]] = IExposureSubnetOracle(oracle).price(tokens[epoch][i]);
         }
 
 
@@ -478,10 +420,9 @@ contract ExposureBasket is ERC20, Ownable {
         fixedWeight[epoch] = _fixedWeight;
 
         rebalanceStep = 5;
-        payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
     }
 
-    function updateTokenPortions() public {
+    function updateTokenPortions() public onlyOwner {
         require(rebalanceStep == 5, "Rebalance Step is not 5.");
 
         for (uint i = 0; i < tokens[epoch].length; i++) {
@@ -493,7 +434,8 @@ contract ExposureBasket is ERC20, Ownable {
             uint256 indexForWeight = weightIndex[epoch];
             address _token = tokens[epoch][i];
 
-            updateTokenPrice(_token);
+            tokenPrices[epoch][_token] = IExposureSubnetOracle(oracle).price(tokens[epoch][i]);
+
 
             if (epoch > 0) {
                 uint256 nav_index = 0;
@@ -529,7 +471,6 @@ contract ExposureBasket is ERC20, Ownable {
                     tokenBuyAmount[epoch][_token] = total_amount - ((total_amount * maxSlippage) / 10000);
                 }
             }
-            payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
         }
         rebalanceStep = 6;
     }
@@ -543,7 +484,7 @@ contract ExposureBasket is ERC20, Ownable {
      *
      * - `rebalanceStep` must be 6.
      */
-    function updateRemainingPortions() external {
+    function updateRemainingPortions() external onlyOwner {
         require(rebalanceStep == 6, "Rebalance Step is not 6.");
 
         if (!isLive) {
@@ -560,176 +501,31 @@ contract ExposureBasket is ERC20, Ownable {
                 if (tokenFixedWeight[tokens[epoch][i]] != 0)
                     continue;
 
-                updateTokenPrice(tokens[epoch][j]);
+                tokenPrices[epoch][tokens[epoch][j]] = IExposureSubnetOracle(oracle).price(tokens[epoch][i]);
+
                 extraPortionToSell = ((((amountToBuy) * tokenWeights[epoch][tokens[epoch][j]]) * (tokenPrices[epoch][tokensToBuy[epoch][i]])) / 1e18) / tokenPrices[epoch][tokens[epoch][j]];
                 extraPortionToSell = extraPortionToSell - ((extraPortionToSell * 5) / 10000);
 
                 if (tokensToBuy[epoch][i] == tokens[epoch][j]) {
                     tokenBuyAmount[epoch][tokensToBuy[epoch][i]] = amountToBuy - extraPortionToSell;
-                } else if (IExposureManager(exposureManager).getBalance(tokens[epoch][j]) > extraPortionToSell) {
+                } else if (IERC20(tokens[epoch][j]).balanceOf(address(this)) > extraPortionToSell) {
                     tokenSellAmount[epoch][tokens[epoch][j]] += extraPortionToSell;
                 }
             }
         }
         rebalanceStep = 7;
-        payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
+        emit TargetPortionsReady(epoch, maxSlippage);
     }
 
-    /**
-     * @notice Allows users to buy tokens from the basket at the price that was
-     * stored in `updateTokenMarketCap()`. Users are free to arbitrage the price difference between an exchange
-     * and the basket while also paying a low 0.1% fee to transact with the basket. The user must approve USDC.
-     * @dev The basket will never buy tokens before it has already sold all of the tokens in `tokenSellAmount[epoch][_token]`.
-     *
-     * @param amount The number of tokens to buy.
-     * @param _token The token address of the token the caller wants to buy.
-     *
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 7.
-     * - `canBeDirectlyTraded[_token]` must be set to true.
-     */
-    function buyFromExposure(uint256 amount, address _token) external {
+    function mintUnderlying(address asset, uint256 amount) public onlyOwner {
         require(rebalanceStep == 7, "Rebalance Step is not 7.");
-        require(canBeDirectlyTraded[_token], "ExposureBasket: Token unauthorized");
+        IExposureSubnetBridge(bridge).mintAsset(asset, amount);
 
-        uint256 percentageBuying = amount * 1e18 / tokenSellAmount[epoch][_token];
-        require(percentageBuying + IExposureManager(exposureManager).getAmountSold(_token, epoch) <= 1e18);
-
-        IERC20(usdc).transferFrom(msg.sender, address(this), amount * tokenPrices[epoch][_token] / 1e18);
-        IERC20(usdc).transfer(exposureManager, amount * tokenPrices[epoch][_token] / 1e18);
-
-        uint256 _fee = fee(amount, buyAndSellFromFee);
-        if (_fee != 0) {
-            IExposureManager(exposureManager).authorizedTransfer(_token, msg.sender, amount - _fee);
-            IExposureManager(exposureManager).authorizedTransfer(_token, feeContract, _fee);
-        } else {
-            IExposureManager(exposureManager).authorizedTransfer(_token, msg.sender, amount);
-        }
-
-        IExposureManager(exposureManager).increaseAmountTraded(1, epoch, _token, percentageBuying);
     }
 
-    /**
-     * @notice Allows users to sell tokens to the basket at the price that was
-     * stored in `updateTokenMarketCap()`. Users are free to arbitrage the price difference between an exchange
-     * and the basket while also paying a low 0.1% fee to transact with the basket. The user will receive USDC.
-     * @dev The basket will never buy tokens before it has already sold all of the tokens in `tokenSellAmount[epoch][_token]`.
-     *
-     * @param amount The number of tokens to buy.
-     * @param _token The token address of the token the caller wants to buy.
-     *
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 7.
-     * - `canBeDirectlyTraded[_token]` must be set to true.
-     */
-    function sellToExposure(uint256 amount, address _token) external {
-        require(rebalanceStep == 8, "Rebalance Step is not 8.");
-        require(canBeDirectlyTraded[_token], "ExposureBasket: Token unauthorized");
-
-        uint256 percentageBuying = amount * 1e18 / tokenBuyAmount[epoch][_token];
-        require(percentageBuying + IExposureManager(exposureManager).getAmountBought(_token, epoch) <= 1e18);
-
-        IERC20(_token).transferFrom(msg.sender, address(this), amount);
-        IERC20(_token).transfer(IExposureManager(exposureManager).exposureAssetAddresses(_token), amount);
-
-        uint256 _fee = fee(amount * tokenPrices[epoch][_token] / 1e18, buyAndSellFromFee);
-        if (_fee != 0) {
-            IExposureManager(exposureManager).getUSDC((amount * tokenPrices[epoch][_token] / 1e18) - _fee, msg.sender);
-            IExposureManager(exposureManager).getUSDC(_fee, feeContract);
-        } else {
-            IExposureManager(exposureManager).getUSDC((amount * tokenPrices[epoch][_token] / 1e18), msg.sender);
-        }
-
-        IExposureManager(exposureManager).increaseAmountTraded(0, epoch, _token, percentageBuying);
-    }
-
-    /**
-     * @notice `owner()` can sell off a percentage of `tokenSellAmount[epoch][_token]` through the
-     * ExposureAssetManager contract.
-     * @dev The basket will never buy tokens before it has already sold all of the tokens in `tokenSellAmount[epoch][_token]`.
-     *
-     * @param percentage The percentage of tokenSellAmount[epoch][_token], the ExposureAssetManager should sell.
-     * @param _token The token address of the token the caller wants to buy.
-     *
-     * @dev If `tokenSellAmount[epoch][_token]` is < 1000 the basket will skip the trade
-     * due to the size being too small.
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 7.
-     * - The caller must be the owner.
-     */
-    function rebaseLiquidateIndividual(uint256 percentage, address _token) external onlyOwner {
+    function burnUnderlying(address asset, uint256 amount) public onlyOwner {
         require(rebalanceStep == 7, "Rebalance Step is not 7.");
-
-        if (tokenSellAmount[epoch][_token] >= 1000)
-            tokenPortions[epoch][_token] = IExposureManager(exposureManager).liquidate(_token, percentage, tokenSellAmount[epoch][_token], maxSlippage, epoch);
-    }
-
-    /**
-     * @notice `owner()` can buy a percentage of the tokens it needs based off its weight and the
-     * total USDC received during `rebaseLiquidate`, `rebaseLiquidateIndividual`, and `buyFromExposure`.
-     * @dev The basket will never buy tokens before it has already sold all of the tokens in `tokenSellAmount[epoch][_token]`.
-     *
-     * @param percentage The percentage of calculated buy amount the ExposureAssetManager should buy.
-     * @param _token The token address of the token the caller wants to buy.
-     *
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 8.
-     * - The caller must be the owner.
-     */
-    function rebaseBuyIndividual(uint256 percentage, address _token) external onlyOwner {
-        require(rebalanceStep == 8, "Rebalance Step is not 8.");
-
-        uint256 total_weight = 0;
-        for (uint256 i = 0; i < tokensToBuy[epoch].length; i++) {
-            total_weight += tokenWeights[epoch][tokensToBuy[epoch][i]];
-        }
-
-        if (tokenBuyAmount[epoch][_token] >= 1000 && !(tokensToRemove[_token]))
-            tokenPortions[epoch][_token] = IExposureManager(exposureManager).purchase(
-                _token,
-                percentage,
-                tokenWeights[epoch][_token],
-                total_weight,
-                epochUSDBalance[epoch],
-                maxSlippage,
-                epoch
-            );
-    }
-
-    /**
-     * @notice `owner()` can sell off a the remaining percentage of each `tokenSellAmount[epoch][_token]`
-     * through the ExposureAssetManager contract.
-     * @dev The basket will never buy tokens before it has already sold all of the tokens
-     * in `tokenSellAmount[epoch][_token]` unless a token has bypassTrade[epoch][tokens[epoch][i]] set to true.
-     *
-     * @dev If `tokenSellAmount[epoch][_token]` is < 1000 the basket will skip the trade
-     * due to the size being too small.
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 7.
-     * - The caller must be the owner.
-     */
-    function rebaseLiquidate() external onlyOwner {
-        require(rebalanceStep == 7, "Rebalance Step is not 7.");
-        for (uint256 i = 0; i < tokens[epoch].length; i++) {
-            if (tokenSellAmount[epoch][tokens[epoch][i]] >= 1000 && !bypassTrade[epoch][tokens[epoch][i]]) {
-                tokenPortions[epoch][tokens[epoch][i]] = IExposureManager(exposureManager).liquidate(
-                    tokens[epoch][i], 1e18,
-                    tokenSellAmount[epoch][tokens[epoch][i]],
-                    maxSlippage,
-                    epoch
-                );
-            }
-        }
-
-        epochUSDBalance[epoch] = IERC20(usdc).balanceOf(exposureManager);
-
-        rebalanceStep = 8;
-        payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
+        IExposureSubnetBridge(bridge).burnAsset(asset, amount);
     }
 
     /**
@@ -743,7 +539,7 @@ contract ExposureBasket is ERC20, Ownable {
      * - `rebalanceStep` must be 8.
      * - The caller must be the owner.
      */
-    function rebaseBuy() external onlyOwner {
+    function finalizePortions() external onlyOwner {
         require(rebalanceStep == 8, "Rebalance Step is not 8.");
 
         uint256 total_weight = 0;
@@ -752,22 +548,10 @@ contract ExposureBasket is ERC20, Ownable {
         }
 
         for (uint256 i = 0; i < tokens[epoch].length; i++) {
-            if (tokenBuyAmount[epoch][tokens[epoch][i]] >= 1000
-                && (!bypassTrade[epoch][tokens[epoch][i]] || !tokensToRemove[tokens[epoch][i]])) {
-                tokenPortions[epoch][tokens[epoch][i]] = IExposureManager(exposureManager).purchase(
-                    tokens[epoch][i],
-                    1e18,
-                    tokenWeights[epoch][tokens[epoch][i]],
-                    total_weight,
-                    epochUSDBalance[epoch],
-                    maxSlippage,
-                    epoch
-                );
-            }
+            tokenPortions[epoch][tokens[epoch][i]] = IERC20(tokens[epoch][i]).balanceOf(address(this)) * 1e18 / totalSupply();
         }
 
         rebalanceStep = 9;
-        payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
     }
 
     /**
@@ -778,32 +562,9 @@ contract ExposureBasket is ERC20, Ownable {
         *
         * - `rebalanceStep` must be 7.
         */
-    function finishLiquidate() external {
-        require(rebalanceStep == 7, "Rebalance Step is not 7.");
-
-        for (uint256 i = 0; i < tokens[epoch].length; i++) {
-            if (tokenSellAmount[epoch][tokens[epoch][i]] >= 1000 && !bypassTrade[epoch][tokens[epoch][i]]) {
-                if (IExposureManager(exposureManager).getAmountSold(tokens[epoch][i], epoch) > 999 * 1e15)
-                    return;
-            }
-        }
-        rebalanceStep = 8;
-    }
-
-    /**
-     * @notice Allows users to increment `rebalanceStep` if the USDC balance is less than 10.
-     *
-     * Requirements:
-     *
-     * - `rebalanceStep` must be 8.
-     */
-    function finishBuy() external {
+    function confirmFinalPortions() external onlyOwner {
         require(rebalanceStep == 8, "Rebalance Step is not 8.");
-
-        if (IERC20(usdc).balanceOf(exposureManager) <= 10 * (10 ** (IERC20Metadata(usdc).decimals()))) {
-            rebalanceStep = 9;
-            return;
-        }
+        rebalanceStep = 9;
     }
 
     /**
@@ -815,7 +576,7 @@ contract ExposureBasket is ERC20, Ownable {
      *
      * - `rebalanceStep` must be 9.
      */
-    function finalizeIndexPrice() external {
+    function finalizeIndexPrice() external onlyOwner {
         require(rebalanceStep == 9, "Rebalance Step is not 9.");
 
         uint256 indexSum = 0;
@@ -846,7 +607,6 @@ contract ExposureBasket is ERC20, Ownable {
 
         index[epoch] = (indexSum * indexDivisor) / 1e18;
         rebalanceStep = 10;
-        payoutExpenseRatio(epochPayout[epoch] * rebalancePayoutAmounts[rebalanceStep] / 100);
 
         if (!isLive) {
             isLive = true;
@@ -879,16 +639,6 @@ contract ExposureBasket is ERC20, Ownable {
         require(_fixedWeight <= 1e18);
         require(_numberOfFixedWeightTokens < tokens[epoch].length);
         tokenFixedWeight[_token] = _weight;
-    }
-
-    /**
-     * @notice Sets `XPSRAddress`.
-     * Requirements:
-     *
-     * - Caller must be the owner.
-     */
-    function setXPSRAddress(address _token) external onlyOwner {
-        XPSRAddress = _token;
     }
 
     /**
@@ -953,28 +703,6 @@ contract ExposureBasket is ERC20, Ownable {
     }
 
     /**
-    * @notice Sets `expenseRatio`.
-    * Requirements:
-    *
-    * - Caller must be the owner.
-    * - The expense ratio must be under 500 (5%).
-    */
-    function changeExpenseRatio(uint256 _expenseRatio) external onlyOwner {
-        require(_expenseRatio <= 500);
-        expenseRatio = _expenseRatio;
-    }
-
-    /**
-    * @notice Sets `XPSRRequirement` for minting and redeeming basket shares.
-    * Requirements:
-    *
-    * - Caller must be the owner.
-    */
-    function setXPSRRequirement(uint256 _req) external onlyOwner {
-        XPSRRequirement = _req;
-    }
-
-    /**
     * @notice Sets `buyAndSellFromFee` for trading directly with the basket during rebalances.
     * Requirements:
     *
@@ -982,16 +710,6 @@ contract ExposureBasket is ERC20, Ownable {
     */
     function setBuyAndSellFromFee(uint256 _fee) external onlyOwner {
         buyAndSellFromFee = _fee;
-    }
-
-    /**
-    * @notice Allows the basket to skip a token trade during a rebalance.
-    * Requirements:
-    *
-    * - Caller must be the owner.
-    */
-    function addBypassTrade(address _token) external onlyOwner {
-        bypassTrade[epoch][_token] = true;
     }
 
     function getTokenMarketCap(uint256 _epoch, address _token) external view returns (uint256){
@@ -1018,59 +736,24 @@ contract ExposureBasket is ERC20, Ownable {
         return tokens[_epoch][_index];
     }
 
-    function updateTokenPrice(address _token) private {
-        tokenPrices[epoch][_token] = IExposureManager(exposureManager).getPrice(_token);
-    }
-
-    /**
-    * @notice Pays out the expense ratio during rebalances.
-    * @dev The amount paid is the annualized expense ratio.
-    * eg if the expense ratio is 1% and the rebalance happened after 1 week
-    * the total payout during the rebalance will be 0.01923%
-    *
-    * @dev Emits a {Transfer} event for each token.
-    * @dev Emits a {ExpenseRatioPay} event.
-    *
-    * @param percentage Percentage of the expense ratio to pay out (each function gets a percentage).
-    */
-    function payoutExpenseRatio(uint256 percentage) private {
-        if (epoch == 0 || msg.sender == feeContract)
-            return;
-
-        uint256 percentageToPay = (expenseRatio * 1e18 / 10000) * percentage / 1e18;
-        uint256 _epochPayout = epoch - 1;
-
-        if (rebalanceStep > 1)
-            _epochPayout = epoch;
-
-        uint256 amountToTransfer;
-        for (uint256 i = 0; i < tokens[_epochPayout].length; i++) {
-            amountToTransfer = IExposureManager(exposureManager).getBalance(tokens[_epochPayout][i]) * percentageToPay / 1e18;
-            if (amountToTransfer > 0) {
-                IExposureManager(exposureManager).authorizedTransfer(tokens[_epochPayout][i], msg.sender, amountToTransfer);
-                emit ExpenseRatioPay(amountToTransfer, percentage, msg.sender, tokens[_epochPayout][i]);
-            }
-        }
-    }
-
     /**
     * @notice Calculates the NAV for determining portions during rebalances.
     * Requirements:
     *
     * - Epoch must be greater than 0.
     */
-//    function calculateNAV(uint256 _epoch) private view returns (uint256) {
-//        require(epoch > 0);
-//
-//        uint256 nav_index = 0;
-//        uint256 token_price_usd;
-//        for (uint256 i = 0; i < tokens[_epoch].length; i++) {
-//            token_price_usd = tokenPrices[epoch][tokens[_epoch][i]];
-//            nav_index += (((token_price_usd) * (tokenPortions[_epoch][tokens[_epoch][i]])) * indexDivisor / 1e36);
-//        }
-//
-//        return nav_index;
-//    }
+    //    function calculateNAV(uint256 _epoch) private view returns (uint256) {
+    //        require(epoch > 0);
+    //
+    //        uint256 nav_index = 0;
+    //        uint256 token_price_usd;
+    //        for (uint256 i = 0; i < tokens[_epoch].length; i++) {
+    //            token_price_usd = tokenPrices[epoch][tokens[_epoch][i]];
+    //            nav_index += (((token_price_usd) * (tokenPortions[_epoch][tokens[_epoch][i]])) * indexDivisor / 1e36);
+    //        }
+    //
+    //        return nav_index;
+    //    }
 
     /**
     * @notice Calculates the fees paid for numerous functions.

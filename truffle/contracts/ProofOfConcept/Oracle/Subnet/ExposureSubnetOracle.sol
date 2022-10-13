@@ -25,7 +25,7 @@ contract ExposureSubnetOracle is Ownable {
         }
     }
 
-    function updatePrice(address mainnetToken, uint256 _price) public onlyOwner returns (uint updatedPrice) {
+    function updatePrice(address mainnetToken, uint256 _price) public onlyOwner returns (uint256) {
         address subnetTokenAddress = exposureSubnetBridgeManager.subnetAddresses(mainnetToken);
         require(subnetTokenAddress != address(0), "ExposureSubnetOracle: Token has not bridged");
         price[subnetTokenAddress] = _price;
@@ -41,7 +41,7 @@ contract ExposureSubnetOracle is Ownable {
         }
     }
 
-    function updateMarketCap(address mainnetToken, uint256 _mcap) public onlyOwner returns (uint updatedPrice) {
+    function updateMarketCap(address mainnetToken, uint256 _mcap) public onlyOwner returns (uint256) {
         address subnetTokenAddress = exposureSubnetBridgeManager.subnetAddresses(mainnetToken);
         require(subnetTokenAddress != address(0), "ExposureSubnetOracle: Token has not bridged");
         marketCap[subnetTokenAddress] = _mcap;

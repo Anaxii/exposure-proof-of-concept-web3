@@ -5,6 +5,11 @@ const USDC = artifacts.require("USDC");
 const MainnetOracle = artifacts.require("ExposureMainnetOracle");
 const SubnetOracle = artifacts.require("ExposureSubnetOracle");
 const SubnetBridge = artifacts.require("ExposureSubnetBridge");
+const TokenA = artifacts.require("TokenA");
+const TokenB = artifacts.require("TokenB");
+const TokenC = artifacts.require("TokenC");
+const TokenD = artifacts.require("TokenD");
+const TokenE = artifacts.require("TokenE");
 
 async function setupDEX(accounts) {
   return new Promise(async (ok) => {
@@ -35,6 +40,22 @@ async function setupDEX(accounts) {
       deadline,
       {from: accounts[0]})
     ok({wavax, usdc, factory, router, pair_address})
+  })
+}
+
+async function newTokens(accounts) {
+  return new Promise(async (ok) => {
+    await TokenA.new()
+    await TokenB.new()
+    await TokenC.new()
+    await TokenD.new()
+    await TokenE.new()
+    let tokenA = await TokenA.deployed()
+    let tokenB = await TokenB.deployed()
+    let tokenC = await TokenC.deployed()
+    let tokenD = await TokenD.deployed()
+    let tokenE = await TokenE.deployed()
+    ok({tokenA, tokenB, tokenC, tokenD, tokenE})
   })
 }
 
