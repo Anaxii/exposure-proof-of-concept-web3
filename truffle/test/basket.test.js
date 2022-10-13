@@ -2,7 +2,6 @@ const UniswapV2Factory = artifacts.require("UniswapV2Factory");
 const UniswapV2Router02 = artifacts.require("UniswapV2Router02");
 const WAVAX = artifacts.require("WAVAX");
 const USDC = artifacts.require("USDC");
-const MainnetOracle = artifacts.require("ExposureMainnetOracle");
 const SubnetOracle = artifacts.require("ExposureSubnetOracle");
 const SubnetBridge = artifacts.require("ExposureSubnetBridge");
 const TokenA = artifacts.require("TokenA");
@@ -300,6 +299,5 @@ contract("Exposure Basket", (accounts) => {
 
     let portions = await basket.getTokenPortions.call(1, tokenBSubnet.address)
     console.log(portions.toString())
-    // expect(weight.toString() == "828500414250207125")
   });
 });
