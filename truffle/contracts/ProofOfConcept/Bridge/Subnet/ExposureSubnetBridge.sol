@@ -53,14 +53,14 @@ contract ExposureSubnetBridge is Ownable, Pausable, BridgeTracking {
     }
 
     function burnAsset(address _token, uint256 _amount) public {
-        require(authorizedSubnetTrader[msg.sender]);
+        require(authorizedSubnetTrader[msg.sender], "ExposureSubnetBridge: Unauthorized");
         ExposureSubnetERC20(_token).transferFrom(msg.sender, address(this), _amount);
         ExposureSubnetERC20(_token).burn(address(this), _amount);
         emit SubnetTraderBurn(msg.sender, _token, _amount);
     }
 
     function mintAsset(address _token, uint256 _amount) public {
-        require(authorizedSubnetTrader[msg.sender]);
+        require(authorizedSubnetTrader[msg.sender], "ExposureSubnetBridge: Unauthorized");
         ExposureSubnetERC20(_token).mint(address(this), _amount);
         emit SubnetTraderMint(msg.sender, _token, _amount);
     }

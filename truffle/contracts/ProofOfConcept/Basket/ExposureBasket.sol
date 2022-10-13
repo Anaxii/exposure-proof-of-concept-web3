@@ -116,7 +116,6 @@ contract ExposureBasket is ERC20, Ownable {
     uint256 private maxSlippage;
     uint256 private rebalanceTimer;
 
-    address private usdc;
     address private feeContract;
 
     address public bridge;
@@ -129,7 +128,6 @@ contract ExposureBasket is ERC20, Ownable {
     constructor (
         string memory _name,
         string memory _symbol,
-        address _usdc,
         address _owner,
         address _oracle,
         address _bridge
@@ -156,8 +154,6 @@ contract ExposureBasket is ERC20, Ownable {
         feeContract = msg.sender;
 
         bridge = _bridge;
-
-        usdc = _usdc;
 
         // Minimum time before another rebalance can occur
         rebalanceTimer = 0 hours;
@@ -210,6 +206,14 @@ contract ExposureBasket is ERC20, Ownable {
         _mint(to, amount);
         if (_fee > 0)
             _mint(feeContract, _fee);
+    }
+
+    function updateBridge(address _bridge) external onlyOwner {
+        bridge = _bridge;
+    }
+
+    function updateOracle(address _oracle) external onlyOwner {
+        oracle = _oracle;
     }
 
     /**
@@ -303,15 +307,9 @@ contract ExposureBasket is ERC20, Ownable {
      *
      * - Caller must be the owner.
      */
-    function addTokens(
-        address[] memory _tokens,
-        address[][] memory _tokenPairs,
-        address[][] memory pairTypes,
-        address[][] memory oracles,
-        address[][] memory routers
-    ) external onlyOwner {
+    function addTokens(address[] memory _tokens) external onlyOwner {
         for (uint256 i = 0; i < _tokens.length; i++) {
-            addToken(_tokens[i], _tokenPairs[i], pairTypes[i], oracles[i], routers[i]);
+            addToken(_tokens[i]);
         }
 
         if (rebalanceStep == 1)
@@ -334,14 +332,7 @@ contract ExposureBasket is ERC20, Ownable {
      * - Caller must be the owner.
      * - `rebalanceStep` must be 1 or 0.
      */
-    function addToken(
-        address _token,
-        address[] memory
-        _tokenPairs,
-        address[] memory pairTypes,
-        address[] memory oracles,
-        address[] memory routers
-    ) public onlyOwner {
+    function addToken(address _token) public onlyOwner {
         require(rebalanceStep == 0 || rebalanceStep == 1, "Rebalance Step is not 0.");
 
         if (hasBeenAdded[_token][epoch])
@@ -518,13 +509,14 @@ contract ExposureBasket is ERC20, Ownable {
     }
 
     function mintUnderlying(address asset, uint256 amount) public onlyOwner {
-        require(rebalanceStep == 7, "Rebalance Step is not 7.");
+        require(rebalanceStep == 7, "mintUnderlying: Rebalance Step is not 7.");
         IExposureSubnetBridge(bridge).mintAsset(asset, amount);
 
     }
 
     function burnUnderlying(address asset, uint256 amount) public onlyOwner {
-        require(rebalanceStep == 7, "Rebalance Step is not 7.");
+        require(rebalanceStep == 7, "burnUnderlying: Rebalance Step is not 7.");
+        IERC20(asset).approve(bridge, amount);
         IExposureSubnetBridge(bridge).burnAsset(asset, amount);
     }
 
@@ -540,7 +532,7 @@ contract ExposureBasket is ERC20, Ownable {
      * - The caller must be the owner.
      */
     function finalizePortions() external onlyOwner {
-        require(rebalanceStep == 8, "Rebalance Step is not 8.");
+        require(rebalanceStep == 7, "finalizePortions: Rebalance Step is not 7.");
 
         uint256 total_weight = 0;
         for (uint256 i = 0; i < tokensToBuy[epoch].length; i++) {
@@ -550,8 +542,6 @@ contract ExposureBasket is ERC20, Ownable {
         for (uint256 i = 0; i < tokens[epoch].length; i++) {
             tokenPortions[epoch][tokens[epoch][i]] = IERC20(tokens[epoch][i]).balanceOf(address(this)) * 1e18 / totalSupply();
         }
-
-        rebalanceStep = 9;
     }
 
     /**
@@ -563,7 +553,7 @@ contract ExposureBasket is ERC20, Ownable {
         * - `rebalanceStep` must be 7.
         */
     function confirmFinalPortions() external onlyOwner {
-        require(rebalanceStep == 8, "Rebalance Step is not 8.");
+        require(rebalanceStep == 7, "confirmFinalPortions: Rebalance Step is not 7.");
         rebalanceStep = 9;
     }
 
@@ -734,6 +724,10 @@ contract ExposureBasket is ERC20, Ownable {
 
     function getTokens(uint256 _epoch, uint256 _index) external view returns (address) {
         return tokens[_epoch][_index];
+    }
+
+    function getTokenWeights(uint256 _epoch, address _token) external view returns (uint256) {
+        return tokenWeights[_epoch][_token];
     }
 
     /**

@@ -15,6 +15,8 @@ const TokenD = artifacts.require("TokenD");
 const TokenE = artifacts.require("TokenE");
 const feeToSetter = "0xAb41077bA83A35013534104Ac7ba7cA76e86828f";
 
+const ExposureBasket = artifacts.require("ExposureBasket");
+
 module.exports = async function (deployer, network, accounts) {
   // bridge testing
   await deployer.deploy(MainnetBridge);
@@ -23,6 +25,7 @@ module.exports = async function (deployer, network, accounts) {
   let sBridge = await SubnetBridge.deployed()
   await deployer.deploy(SubnetOracle, sBridge.address);
   await deployer.deploy(TestToken);
+  let sOracle = await SubnetOracle.deployed()
 
   // oracle testing
   await deployer.deploy(USDC)
@@ -45,4 +48,6 @@ module.exports = async function (deployer, network, accounts) {
   let mainnetBridge = await MainnetBridge.deployed()
   await deployer.deploy(MainnetOracle)
   await deployer.deploy(SubnetOracle, mainnetBridge.address)
+  await deployer.deploy(ExposureBasket, "test", "test", accounts[0], sOracle.address, sBridge.address)
+
 };
