@@ -1,4 +1,5 @@
 import {Network} from "./Network";
+import {getJSON} from "../util";
 
 const {ethers} = require("ethers");
 
@@ -10,8 +11,8 @@ export default class Mainnet extends Network {
     }
 
     private async monitor() {
+        const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
         try {
-            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             contract.on("BridgeToSubnet", (user: any, asset: any, amount: any, _bridgeRequestID: any, assetName: any, assetSymbol: any, event: any) => {
                 this.eventHandler.emit('BridgeToSubnet', {
                     network: this.config,
@@ -23,7 +24,17 @@ export default class Mainnet extends Network {
                     assetSymbol
                 });
             });
-        } catch {
+            let baskets = getJSON("baskets.json")
+            for (const i in baskets) {
+                contract.on("UpdateSubnet", (event: any) => {
+                    this.eventHandler.emit('NewPendingBasketTradesComplete', {
+                        network: this.config,
+                        basket: baskets[i],
+                    });
+                });
+            }
+        } catch (err: any) {
+            console.log("Critical error", this.config, err)
             process.exit()
         }
     }
@@ -106,9 +117,25 @@ export default class Mainnet extends Network {
             const factoryContract = new ethers.Contract(factory, this.abi, this.provider);
             return await factoryContract.getPair(token, quote)
         } catch {
-            {
                 return ""
-            }
+        }
+    }
+
+    async getSubnetProductAddress(product: string) {
+        try {
+            const bridge = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            return await bridge.subnetProductAssetsAddress.call(product)
+        } catch {
+                return ""
+        }
+    }
+
+    async getBalance(token: string, account: string) {
+        try {
+            const contract = new ethers.Contract(token, this.abi, this.provider);
+            return await contract.balanceOf.call(account)
+        } catch {
+            return ""
         }
     }
 }

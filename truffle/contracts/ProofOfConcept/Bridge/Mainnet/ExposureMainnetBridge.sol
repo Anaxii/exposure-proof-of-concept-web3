@@ -10,8 +10,10 @@ import "../BridgeTracking.sol";
 contract ExposureMainnetBridge is Ownable, Pausable, BridgeTracking {
 
     mapping(address => bool) public isAllowed;
+    mapping(address => bool) public isExposureProduct;
+    mapping(address => address) public subnetProductAssetsAddress;
 
-    event Swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
+    event NewExposureProduct(address indexed contractAddress, uint256 indexed _type);
 
     constructor() {
         isAllowed[msg.sender] = true;
@@ -45,30 +47,17 @@ contract ExposureMainnetBridge is Ownable, Pausable, BridgeTracking {
         return asset;
     }
 
-    function swapBridgedAsset(
-        address tokenIn,
-        address tokenOut,
-        address[] memory path,
-        uint256 amountIn,
-        uint256 maxSlippage,
-        address router
-    )
-    public
-    whenNotPaused
-    onlyOwner
-    returns (uint256) {
-        require(maxSlippage < 1e18);
-        uint256[] memory amountOutMins = IUniswapV2Router01(router).getAmountsOut(amountIn, path);
-        uint256 out = amountOutMins[path.length - 1];
-        uint256[] memory amounts = IUniswapV2Router01(router).swapExactTokensForTokens(
-            amountIn,
-            out - ((out * maxSlippage) / 1e18),
-            path,
-            address(this),
-            block.timestamp + 40 seconds
-        );
-        emit Swap(tokenIn, tokenOut, amountIn, amounts[amounts.length - 1]);
-        return amounts[amounts.length - 1];
+    function authorizedWithdraw(address _asset, uint256 _amount) external {
+        require(isExposureProduct[msg.sender], "Unauthorized");
+        IERC20(_asset).transfer(msg.sender, _amount);
+    }
+
+    function setExposureProduct(address account, bool status, uint256 _type, address _product) external onlyOwner {
+        isExposureProduct[account] = status;
+        if (status) {
+            emit NewExposureProduct(account, _type);
+            subnetProductAssetsAddress[_product] = account;
+        }
     }
 
     function setAllowed(address user, bool status) public onlyOwner {

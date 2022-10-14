@@ -5,8 +5,8 @@
     {
       "name": "fuji",
       "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-      "bridge_address": "0x5f024972Fa6F59255AD8BDC289262930ea6A7261",
-      "oracle": "0xAD6D424A6b75F9fc26665633dAe7781bc1bA5b39",
+      "bridge_address": "0x555A7C8F6B5f0c2Aaa6c94dbC6199C8EA82182a9",
+      "oracle": "0x42e01bc57d6Cc25F33d913bD1e0A8C4AA1A9Bdb6",
       "abi": [
         "function bridgeToSubnet(uint256 amount, address asset) public returns (uint256)",
         "function approve(address spender, uint256 amount) public returns (bool)",
@@ -17,15 +17,17 @@
         "function factory() external pure returns (address)",
         "function getPair(address tokenA, address tokenB) external view returns (address pair)",
         "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
-        "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)"
+        "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
+        "function subnetProductAssetsAddress(address subnetProduct) external view returns (address)",
+        "event UpdateSubnet()"
       ]
     }
   ],
   "subnet": {
     "name": "fuji",
     "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-    "bridge_manager_address": "0x862355f4d23D21E77aEaE24529819CBdA0A45858",
-    "oracle": "0x665a3a94a52C27099B43995001F1e5aBde058D2e",
+    "bridge_manager_address": "0xA65951646e399292ef195090ebb2D56eb346d978",
+    "oracle": "0x783963886f96cD9C8CC42A2068BC6FdfFb4982d2",
     "abi": [
       "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
       "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
@@ -37,8 +39,19 @@
       "function updateMultipleMarketCap(address[] memory tokens, uint256[] memory mcaps) external",
       "function updateMarketCap(address mainnetToken, uint256 _mcap) public returns (uint256)",
       "function subnetAddresses(address) view returns (address)",
+      "function mainnetAddresses(address) view returns (address)",
       "function burnAsset(address _token, uint256 _amount) public",
-      "function mintAsset(address _token, uint256 _amount) public"
+      "function mintAsset(address _token, uint256 _amount) public",
+      "event TargetPortionsReady(uint256 indexed _epoch, uint256 indexed _maxSlippage)",
+      "function getTokens(uint256 _epoch, uint256 _index) external view returns (address)",
+      "function getTokenBuyAmount(uint256 _epoch, address _token) external view returns (uint256)",
+      "function getTokenSellAmount(uint256 _epoch, address _token) external view returns (uint256)",
+      "function balanceOf(address account) external view returns (uint256)",
+      "function mintUnderlying(address asset, uint256 amount) external",
+      "function burnUnderlying(address asset, uint256 amount) public",
+      "function finalizePortions() external",
+      "function confirmFinalPortions() external",
+      "function epoch() external view returns (uint256)"
     ]
   }
 }

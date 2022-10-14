@@ -60,7 +60,7 @@ contract ExposureBasket is ERC20, Ownable {
     /**
      * @dev tokens is a list of all the tokens in the basket.
      */
-    mapping(uint256 => address[]) private tokens;
+    mapping(uint256 => address[]) public tokens;
 
     /**
      * @dev rebalanceTimeStamp stores the next time a rebalance can occur.
@@ -729,25 +729,6 @@ contract ExposureBasket is ERC20, Ownable {
     function getTokenWeights(uint256 _epoch, address _token) external view returns (uint256) {
         return tokenWeights[_epoch][_token];
     }
-
-    /**
-    * @notice Calculates the NAV for determining portions during rebalances.
-    * Requirements:
-    *
-    * - Epoch must be greater than 0.
-    */
-    //    function calculateNAV(uint256 _epoch) private view returns (uint256) {
-    //        require(epoch > 0);
-    //
-    //        uint256 nav_index = 0;
-    //        uint256 token_price_usd;
-    //        for (uint256 i = 0; i < tokens[_epoch].length; i++) {
-    //            token_price_usd = tokenPrices[epoch][tokens[_epoch][i]];
-    //            nav_index += (((token_price_usd) * (tokenPortions[_epoch][tokens[_epoch][i]])) * indexDivisor / 1e36);
-    //        }
-    //
-    //        return nav_index;
-    //    }
 
     /**
     * @notice Calculates the fees paid for numerous functions.

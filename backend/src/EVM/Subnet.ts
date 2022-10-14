@@ -1,4 +1,5 @@
 import {Network} from "./Network";
+import {getJSON} from "../util";
 
 const {ethers} = require("ethers");
 
@@ -23,8 +24,87 @@ export default class Subnet extends Network {
                     assetSymbol
                 });
             });
-        } catch {
+        } catch (err: any) {
+            console.log("Critical error", this.config, err)
             process.exit()
+        }
+    }
+
+    async monitorBaskets() {
+        let baskets = getJSON("baskets.json")
+        for (const i in baskets) {
+            const contract = new ethers.Contract(baskets[i], this.abi, this.provider);
+            contract.on("TargetPortionsReady", async (_epoch: any, _maxSlippage: any, event: any) => {
+                console.log("Test")
+                let check: any = await this.getPendingBasketTrades(baskets[i], _epoch)
+                let amounts = check.amounts
+                let tokens = check.tokens
+                this.eventHandler.emit('NewPendingBasketTrades', {
+                    network: this.config,
+                    basketAddress: baskets[i],
+                    _epoch: _maxSlippage.toString(),
+                    _maxSlippage: _maxSlippage.toString(),
+                    tokens,
+                    amounts
+                });
+            });
+        }
+    }
+
+    async getBasketTokens(basketAddress: any) {
+        const contract = new ethers.Contract(basketAddress, this.abi, this.provider);
+        let _epoch = await contract.epoch.call()
+        let tokens = []
+        let t = false
+        let i =0
+        while (t) {
+            try {
+                let token = await contract.getTokens.call(_epoch, i)
+                tokens.push(token)
+                i++
+            } catch {
+                t = false
+            }
+        }
+        return tokens
+    }
+
+    async getPendingBasketTrades(basketAddress: any, _epoch: any) {
+        const contract = new ethers.Contract(basketAddress, this.abi, this.provider);
+        let amounts = []
+        let tokens = await this.getBasketTokens(basketAddress)
+
+        for (const i in tokens) {
+            let buyAmount = await contract.getTokenBuyAmount.call(_epoch, tokens[i])
+            let sellAmount = await contract.getTokenSellAmount.call(_epoch, tokens[i])
+            amounts.push(BigInt(buyAmount.toString()) - BigInt(sellAmount.toString()))
+        }
+        return {tokens, amounts}
+    }
+
+    async updateBasketBalances(basketAddress: any, amounts: any, tokens: any) {
+        const contract = new ethers.Contract(basketAddress, this.abi, this.provider);
+        try {
+            for (const i in tokens) {
+                let token = await this.getSubnetAddress(tokens[i])
+                const tokenContract = new ethers.Contract(token, this.abi, this.provider);
+                let bal = await tokenContract.balanceOf.call(basketAddress)
+                let newBal = BigInt(amounts[i]) - BigInt(bal)
+                if (newBal > BigInt(0)) {
+                    let tx = await contract.mintUnderlying(token, newBal)
+                    await tx.wait(2)
+                } else {
+                    let tx = await contract.burnUnderlying(token, newBal * BigInt(-1))
+                    await tx.wait(2)
+                }
+            }
+            let tx = await contract.finalizePortions()
+            await tx.wait(2)
+
+            tx= await contract.confirmFinalPortions()
+            await tx.wait(2)
+        } catch (err: any) {
+            console.log(err)
         }
     }
 
@@ -92,6 +172,17 @@ export default class Subnet extends Network {
         try {
             const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
             let subnetToken = await contract.subnetAddresses(token)
+            return subnetToken.toString()
+        } catch {
+            return ""
+        }
+
+    }
+
+    async getMainnetAddress(token: string) {
+        try {
+            const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
+            let subnetToken = await contract.mainnetAddresses(token)
             return subnetToken.toString()
         } catch {
             return ""

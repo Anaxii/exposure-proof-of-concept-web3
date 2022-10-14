@@ -8,6 +8,7 @@ function checkTokenList(symbol: string, address: string, network: string, eventH
     if (!tokens[symbol]) {
         tokens[symbol] = {[network]: address}
         console.log(`Added ${symbol} on ${network} for oracle tracking`)
+        writeJSON("tokens.json", tokens)
         eventHandler.emit('checkForPairs', {symbol, network})
     } else {
         for (const i in tokens[symbol]) {
@@ -15,12 +16,13 @@ function checkTokenList(symbol: string, address: string, network: string, eventH
                 return
         }
         tokens[symbol][network] = address
+        writeJSON("tokens.json", tokens)
         eventHandler.emit('checkForPairs', {symbol, network})
     }
     writeJSON("tokens.json", tokens)
 }
 
-export default async function Swap(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
+export default async function Bridge(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
 
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);
