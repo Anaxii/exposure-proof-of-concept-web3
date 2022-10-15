@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "ethers": "5.7.1",
-    "fs": "0.0.1-security"
+    "fs": "0.0.1-security",
+    "sqlite3": "^5.1.2"
   }
 }
