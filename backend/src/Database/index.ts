@@ -16,7 +16,8 @@ async function setupDatabase() {
     let db = new sqlite3.Database("backend/storage/database.db",
         sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
         (err: any) => {
-            // do your thing
+        console.log("Critical error: DB |", err)
+            process.exit(1)
         });
     await createTables(db)
     return db
