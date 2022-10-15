@@ -1,6 +1,5 @@
 import Subnet from "../EVM/Subnet";
 import Mainnet from "../EVM/Mainnet";
-import {getJSON, sleep, writeJSON} from "../util";
 
 export default async function Baskets(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
 

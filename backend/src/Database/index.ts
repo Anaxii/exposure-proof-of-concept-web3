@@ -1,88 +1,76 @@
 const sqlite3 = require('sqlite3').verbose();
 
-export default async function Database() {
-    let db = new sqlite3.Database('backend/storage/database.db', sqlite3.OPEN_READWRITE, async (err: any) => {
-        if (err) {
-            db = await setupDatabase()
-            console.error("Created new database");
-        }
-        console.log('Connected to the chinook database.');
-    });
-    await createTables(db)
-    db.close()
+export default async function initDatabase() {
+    return new Promise(async (ok: any) => {
+        let fresh = false
+        let db = new sqlite3.Database('backend/storage/database.db', sqlite3.OPEN_READWRITE, async (err: any) => {
+            if (err) {
+                db = await setupDatabase()
+                fresh = true
+                console.error("Created new database");
+            }
+            await createTables(db, fresh)
+            db.close()
+            ok()
+        });
+    })
+}
+
+async function getDB() {
+    return new sqlite3.Database('backend/storage/database.db', sqlite3.OPEN_READWRITE);
 }
 
 async function setupDatabase() {
     return new sqlite3.Database("backend/storage/database.db",
         sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
         (err: any) => {
-            console.log("Critical error: DB |", err)
-            process.exit(1)
+            if (err) {
+                console.log("Critical error: DB |", err)
+                process.exit(1)
+            }
         })
 }
 
-async function createTables(db: any) {
-    await db.run("CREATE TABLE routers(network_name text, dex_name text, contract_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE ROUTERS", err.message);
-        }
-        db.run(`INSERT INTO routers(network_name, dex_name, contract_address) VALUES(?,?,?)`, ["fuji", "exposure", "0x2D99ABD9008Dc933ff5c0CD271B88309593aB921"], (err: any) => {
-            if (err) {
-                return console.log(err.message);
-            }
-        });
-    })
-    await db.run("CREATE TABLE tokens(network_name text, token_name text, contract_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE TOKENS", err.message);
-        }
-        db.run(`INSERT INTO tokens(network_name, token_name, contract_address) VALUES(?,?,?)`, ["fuji", "WAVAX", "0x72187342BC71CAd08FcCC361ff8336A684dd6883"], (err: any) => {
-            if (err) {
-                return console.log(err.message);
-            }
-        });
-    })
-    await db.run("CREATE TABLE liquidity_tokens(network_name text, token_name text, contract_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE LIQUIDITY_TOKENS", err.message);
-        }
-        db.run(`INSERT INTO liquidity_tokens(network_name, token_name, contract_address) VALUES(?,?,?)`, ["fuji", "WAVAX", "0x72187342BC71CAd08FcCC361ff8336A684dd6883"], (err: any) => {
-            if (err) {
-                return console.log(err.message);
-            }
-        });
-    })
-    await db.run("CREATE TABLE dollar_coins(network_name text, token_name text, contract_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE DOLLAR_COINS", err.message);
-        }
-        db.run(`INSERT INTO dollar_coins(network_name, token_name, contract_address) VALUES(?,?,?)`, ["fuji", "USDC", "0x803871f6BB32a9C1230cdc182002f8e058791A9A"], (err: any) => {
-            if (err) {
-                return console.log(err.message);
-            }
-        });
-    })
-    await db.run("CREATE TABLE prices(token_name text, price text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE PRICES", err.message);
+async function dbCreate(query: string, data: any) {
+    let db = await getDB()
+    return new Promise(async (ok: any) => {
+        if (!data) {
+            await db.run(query, (err: any) => {
+                ok()
+            })
+        } else {
+            await db.run(query, data, (err: any) => {
+                ok()
+            })
         }
     })
-    await db.run("CREATE TABLE mcaps(token_name text, mcap text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE MCAPS", err.message);
-        }
-    })
-    await db.run("CREATE TABLE baskets(basket_name text, contract_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE BASKETS", err.message);
-        }
-    })
-    await db.run("CREATE TABLE pairs(network_name text, token_name text, quote_name text, dex_name text, pair_name text, pair_address text, token_address text, quote_address text)", (err: any) => {
-        if (err) {
-            return console.log("CREATE PAIRS", err.message);
-        }
-        db.run(
-            `INSERT INTO pairs(network_name, token_name, quote_name, dex_name, pair_name, pair_address, token_address, quote_address) VALUES(?,?,?,?,?,?,?,?)`,
+}
+
+async function createTables(db: any, fresh: boolean) {
+    await dbCreate("CREATE TABLE routers(network_name text, dex_name text, contract_address text)", null)
+    if (fresh)
+        await dbInsert(`INSERT INTO routers(network_name, dex_name, contract_address)
+                         VALUES (?, ?, ?)`, ["fuji", "exposure", "0x2D99ABD9008Dc933ff5c0CD271B88309593aB921"])
+    await dbCreate("CREATE TABLE tokens(network_name text, token_name text, contract_address text)", null)
+    if (fresh)
+        await dbInsert(`INSERT INTO tokens(network_name, token_name, contract_address)
+                         VALUES (?, ?, ?)`, ["fuji", "WAVAX", "0x72187342BC71CAd08FcCC361ff8336A684dd6883"])
+    await dbCreate("CREATE TABLE liquidity_tokens(network_name text, token_name text, contract_address text)", null)
+    if (fresh)
+        await dbInsert(`INSERT INTO liquidity_tokens(network_name, token_name, contract_address)
+                         VALUES (?, ?, ?)`, ["fuji", "WAVAX", "0x72187342BC71CAd08FcCC361ff8336A684dd6883"])
+    await dbCreate("CREATE TABLE dollar_coins(network_name text, token_name text, contract_address text)", null)
+    if (fresh)
+        await dbInsert(`INSERT INTO dollar_coins(network_name, token_name, contract_address)
+                         VALUES (?, ?, ?)`, ["fuji", "USDC", "0x803871f6BB32a9C1230cdc182002f8e058791A9A"])
+    await dbCreate("CREATE TABLE prices(token_name text PRIMARY KEY NOT NULL, price bigint, UNIQUE(token_name))", null)
+    await dbCreate("CREATE TABLE mcaps(token_name text PRIMARY KEY NOT NULL, mcap bigint, UNIQUE(token_name))", null)
+    await dbCreate("CREATE TABLE baskets(basket_name text PRIMARY KEY NOT NULL, contract_address text, UNIQUE(basket_name))", null)
+    await dbCreate("CREATE TABLE pairs(network_name text, token_name text, quote_name text, dex_name text, pair_name text, pair_address text, token_address text, quote_address text)", null)
+    if (fresh)
+        await dbInsert(`INSERT INTO pairs(network_name, token_name, quote_name, dex_name, pair_name, pair_address,
+                                           token_address, quote_address)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 "fuji",
                 "WAVAX",
@@ -92,23 +80,42 @@ async function createTables(db: any) {
                 "0x23Cb1c2582C23C7E45415E290580E7C7e5af7C0D",
                 "0x72187342BC71CAd08FcCC361ff8336A684dd6883",
                 "0x803871f6BB32a9C1230cdc182002f8e058791A9A",
-            ], (err: any) => {
+            ])
+}
+
+export async function dbQueryAll(_query: string, data: any) {
+    let db = await getDB()
+    return new Promise((resolve) => {
+        if (data) {
+            db.all(_query, data, (err: any, row: any) => {
+                db.close()
+                if (err) {
+                    console.log(err)
+                    resolve([])
+                }
+                resolve(row)
+            });
+            return
+        }
+        db.all(_query, (err: any, row: any) => {
+            db.close()
             if (err) {
-                return console.log(err.message);
+                console.log(err)
+                resolve([])
             }
+            resolve(row)
         });
     })
 }
 
-async function query() {
-    // let sql = `SELECT * FROM routers WHERE network_name = ?`;
-    //
-    // db.get(sql, ["fuji"], (err: any, row: any) => {
-    //     if (err) {
-    //         return console.error(err.message);
-    //     }
-    //     console.log(row)
-    //
-    // });
+export async function dbInsert(_query: string, data: any) {
+    let db = await getDB()
+    return new Promise(async (ok) => {
+        await db.run(_query, data, (err: any) => {
+            if (err)
+                console.log(_query, err)
+            ok(null)
+            db.close()
+        })
+    })
 }
-

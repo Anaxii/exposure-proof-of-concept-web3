@@ -1,5 +1,5 @@
 import {Network} from "./Network";
-import {getJSON} from "../util";
+import {dbQueryAll} from "../Database";
 
 const {ethers} = require("ethers");
 
@@ -24,12 +24,12 @@ export default class Mainnet extends Network {
                     assetSymbol
                 });
             });
-            let baskets = getJSON("baskets.json")
+            let baskets: any = await dbQueryAll("SELECT * FROM baskets", null)
             for (const i in baskets) {
                 contract.on("UpdateSubnet", (event: any) => {
                     this.eventHandler.emit('NewPendingBasketTradesComplete', {
                         network: this.config,
-                        basket: baskets[i],
+                        basket: baskets[i].contract_address,
                     });
                 });
             }

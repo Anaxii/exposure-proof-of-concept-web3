@@ -1,28 +1,27 @@
 import Mainnet from "../EVM/Mainnet";
 import Subnet from "../EVM/Subnet";
-import {writeJSON, getJSON} from "../util";
+import {dbInsert, dbQueryAll} from "../Database";
 
-function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
-    let tokens = getJSON("tokens.json")
-
-    if (!tokens[symbol]) {
-        tokens[symbol] = {[network]: address}
+async function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
+    let tokenCheck: any = await dbQueryAll(
+        `SELECT *
+         FROM tokens
+         WHERE network_name = ?
+           AND contract_address = ?`,
+        [network, address])
+    if (tokenCheck.length == 0) {
+        await dbInsert(
+            `INSERT INTO tokens(network_name, token_name, contract_address)
+             VALUES (?, ?, ?)`,
+            [network, symbol, address])
         console.log(`Added ${symbol} on ${network} for oracle tracking`)
-        writeJSON("tokens.json", tokens)
-        eventHandler.emit('checkForPairs', {symbol, network})
-    } else {
-        for (const i in tokens[symbol]) {
-            if (tokens[symbol][i][network])
-                return
-        }
-        tokens[symbol][network] = address
-        writeJSON("tokens.json", tokens)
         eventHandler.emit('checkForPairs', {symbol, network})
     }
-    writeJSON("tokens.json", tokens)
 }
 
 export default async function Bridge(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
+
+    await checkTokenList("USDC", "0x803871f6BB32a9C1230cdc182002f8e058791A9A", "fuji", eventHandler)
 
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);

@@ -1,5 +1,5 @@
 import {Network} from "./Network";
-import {getJSON} from "../util";
+import {dbQueryAll} from "../Database";
 
 const {ethers} = require("ethers");
 
@@ -31,17 +31,17 @@ export default class Subnet extends Network {
     }
 
     async monitorBaskets() {
-        let baskets = getJSON("baskets.json")
+        let baskets: any = await dbQueryAll("SELECT * FROM baskets", null)
         for (const i in baskets) {
-            const contract = new ethers.Contract(baskets[i], this.abi, this.provider);
+            const contract = new ethers.Contract(baskets[i].contract_address, this.abi, this.provider);
             contract.on("TargetPortionsReady", async (_epoch: any, _maxSlippage: any, event: any) => {
                 console.log("Test")
-                let check: any = await this.getPendingBasketTrades(baskets[i], _epoch)
+                let check: any = await this.getPendingBasketTrades(baskets[i].contract_address, _epoch)
                 let amounts = check.amounts
                 let tokens = check.tokens
                 this.eventHandler.emit('NewPendingBasketTrades', {
                     network: this.config,
-                    basketAddress: baskets[i],
+                    basketAddress: baskets[i].contract_address,
                     _epoch: _maxSlippage.toString(),
                     _maxSlippage: _maxSlippage.toString(),
                     tokens,
