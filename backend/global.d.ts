@@ -1,22 +1,14 @@
 declare interface Config {
     private_key: string
     public_key: string
-    main_networks: MainNetwork[]
-    subnet: SubNetwork
+    main_networks: NetworkInterface[]
+    subnet: NetworkInterface
 }
 
-declare interface MainNetwork {
+declare interface NetworkInterface {
     name: string
     api_url: string
     bridge_address: string
-    oracle: string
-    abi: string[]
-}
-
-declare interface SubNetwork {
-    name: string
-    api_url: string
-    bridge_manager_address: string
     oracle: string
     abi: string[]
 }

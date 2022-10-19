@@ -19,14 +19,15 @@
         "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
         "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
         "function subnetProductAssetsAddress(address subnetProduct) external view returns (address)",
-        "event UpdateSubnet()"
+        "event UpdateSubnet()",
+        "function bridgeRequestIsComplete(uint256 id) external view returns (bool)"
       ]
     }
   ],
   "subnet": {
     "name": "fuji",
     "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-    "bridge_manager_address": "0xA65951646e399292ef195090ebb2D56eb346d978",
+    "bridge_address": "0xA65951646e399292ef195090ebb2D56eb346d978",
     "oracle": "0x783963886f96cD9C8CC42A2068BC6FdfFb4982d2",
     "abi": [
       "event BridgeToSubnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
@@ -51,7 +52,8 @@
       "function burnUnderlying(address asset, uint256 amount) public",
       "function finalizePortions() external",
       "function confirmFinalPortions() external",
-      "function epoch() external view returns (uint256)"
+      "function epoch() external view returns (uint256)",
+      "function bridgeRequestIsComplete(uint256 id) external view returns (bool)"
     ]
   }
 }

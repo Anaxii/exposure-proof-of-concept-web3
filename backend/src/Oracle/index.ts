@@ -25,10 +25,7 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
     })
 
     const rule = new schedule.RecurrenceRule();
-    rule.minute = [0, new schedule.Range(0, 59)];
-    await updateMainnetPrices(api_urls, networks)
-    await computePrices(networks)
-    await updateSubnetPrices(subnet)
+    rule.second = [0, new schedule.Range(0, 59)];
     schedule.scheduleJob(rule, async () => {
         while (checkingPairs) {
             await sleep(500)

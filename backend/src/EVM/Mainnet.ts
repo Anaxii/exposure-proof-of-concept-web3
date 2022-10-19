@@ -5,7 +5,7 @@ const {ethers} = require("ethers");
 
 export default class Mainnet extends Network {
 
-    constructor(config: MainNetwork, eventHandler: any, privateKey: string) {
+    constructor(config: NetworkInterface, eventHandler: any, privateKey: string) {
         super(config, eventHandler, privateKey)
         this.monitor()
     }
@@ -59,14 +59,14 @@ export default class Mainnet extends Network {
         }
     }
 
-    async bridgeToMainnet(asset: string, user: string, amount: string, _bridgeRequestID: string, symbol: string, network: string) {
+    async bridgeToMainnet(asset: string, user: string, amount: string, _bridgeRequestID: string, symbol: string) {
         try {
             const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
             let tx = await contractWithSigner.bridgeToMainnet(asset, user, amount, _bridgeRequestID)
             await tx.wait(2)
-            console.log(`Bridged ${amount} (1e18) ${symbol} to ${network} (mainnet) for ${user} (requestID: ${_bridgeRequestID})`)
+            console.log(`Bridged ${amount} (1e18) ${symbol} to ${this.config.name} (mainnet) for ${user} (requestID: ${_bridgeRequestID})`)
             return true
         } catch (err: any) {
             console.log(err)
@@ -86,26 +86,6 @@ export default class Mainnet extends Network {
         } catch (err: any) {
             console.log(err)
             return false
-        }
-    }
-
-    async getPrice(pair: string) {
-        try {
-            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
-            let price = await contract.price(pair)
-            return price.toString()
-        } catch {
-            return ""
-        }
-    }
-
-    async getMCAP(pair: string) {
-        try {
-            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
-            let price = await contract.marketCap(pair)
-            return price.toString()
-        } catch {
-            return ""
         }
     }
 
@@ -130,12 +110,24 @@ export default class Mainnet extends Network {
         }
     }
 
-    async getBalance(token: string, account: string) {
+    async sync(startBlock: any) {
         try {
-            const contract = new ethers.Contract(token, this.abi, this.provider);
-            return await contract.balanceOf.call(account)
-        } catch {
-            return ""
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            let endBlock = await this.getBlock();
+            endBlock = endBlock.number
+            let allEvents: any[] = [];
+
+            for (let i = startBlock; i < endBlock; i += 5000) {
+                const _startBlock = i;
+                const _endBlock = Math.min(endBlock, i + 4999);
+                const events = await contract.queryFilter("BridgeToSubnet", _startBlock, _endBlock);
+                allEvents = [...allEvents, ...events]
+            }
+            return allEvents
+        } catch (err: any) {
+            console.log("Critical error", this.config, err)
+            process.exit()
         }
     }
+
 }

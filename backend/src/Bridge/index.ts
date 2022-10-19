@@ -21,8 +21,6 @@ async function checkTokenList(symbol: string, address: string, network: string, 
 
 export default async function Bridge(eventHandler: any, config: Config, subnet: Subnet, networks: { [key: string]: Mainnet }) {
 
-    await checkTokenList("USDC", "0x803871f6BB32a9C1230cdc182002f8e058791A9A", "fuji", eventHandler)
-
     eventHandler.on('BridgeToSubnet', function (data: any) {
         console.log('ToSubnet', data);
         subnet.bridgeToSubnet(data.asset, data.user, data.amount, data._bridgeRequestID, data.assetName, data.assetSymbol)
@@ -30,6 +28,6 @@ export default async function Bridge(eventHandler: any, config: Config, subnet: 
     })
     eventHandler.on('BridgeToMainnet', function (data: any) {
         console.log('ToMainnet', data);
-        networks[data.network.name].bridgeToMainnet(data.asset, data.user, data.amount, data._bridgeRequestID, data.assetSymbol, data.network.name)
+        networks[data.network.name].bridgeToMainnet(data.asset, data.user, data.amount, data._bridgeRequestID, data.assetSymbol)
     })
 }

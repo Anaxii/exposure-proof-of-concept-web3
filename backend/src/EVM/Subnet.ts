@@ -5,25 +5,25 @@ const {ethers} = require("ethers");
 
 export default class Subnet extends Network {
 
-    constructor(config: SubNetwork, eventHandler: any, privateKey: string) {
+    constructor(config: NetworkInterface, eventHandler: any, privateKey: string) {
         super(config, eventHandler, privateKey)
         this.monitor()
     }
 
-    private async monitor() {
+    async sync(startBlock: any) {
         try {
-            const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
-            contract.on("BridgeToMainnet", (user: any, asset: any, amount: any, _bridgeRequestID: any, assetName: any, assetSymbol: any, event: any) => {
-                this.eventHandler.emit('BridgeToMainnet', {
-                    network: this.config,
-                    asset,
-                    user,
-                    _bridgeRequestID: _bridgeRequestID.toString(),
-                    amount: amount.toString(),
-                    assetName,
-                    assetSymbol
-                });
-            });
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            let endBlock = await this.getBlock();
+            endBlock = endBlock.number
+            let allEvents: any[] = [];
+
+            for (let i = startBlock; i < endBlock; i += 5000) {
+                const _startBlock = i;
+                const _endBlock = Math.min(endBlock, i + 4999);
+                const events = await contract.queryFilter("BridgeToMainnet", _startBlock, _endBlock);
+                allEvents = [...allEvents, ...events]
+            }
+            return allEvents
         } catch (err: any) {
             console.log("Critical error", this.config, err)
             process.exit()
@@ -56,7 +56,7 @@ export default class Subnet extends Network {
         let _epoch = await contract.epoch.call()
         let tokens = []
         let t = false
-        let i =0
+        let i = 0
         while (t) {
             try {
                 let token = await contract.getTokens.call(_epoch, i)
@@ -101,7 +101,7 @@ export default class Subnet extends Network {
             let tx = await contract.finalizePortions()
             await tx.wait(2)
 
-            tx= await contract.confirmFinalPortions()
+            tx = await contract.confirmFinalPortions()
             await tx.wait(2)
         } catch (err: any) {
             console.log(err)
@@ -111,7 +111,7 @@ export default class Subnet extends Network {
     async bridgeToMainnet(asset: string, user: string, amount: string) {
         const signer = new ethers.Wallet(this.privateKey, this.provider)
         try {
-            let contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
+            let contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             const bridgeContract = contract.connect(signer)
             let tx = await bridgeContract.bridgeToMainnet(asset, user, amount)
             await tx.wait(2)
@@ -124,7 +124,7 @@ export default class Subnet extends Network {
     }
 
     async bridgeToSubnet(asset: string, user: string, amount: string, _bridgeRequestID: string, assetName: string, assetSymbol: string) {
-        const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
+        const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
         try {
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
@@ -157,36 +157,43 @@ export default class Subnet extends Network {
         }
     }
 
-    async getPrice(pair: string) {
-        try {
-            const contract = new ethers.Contract(this.config.oracle, this.abi, this.provider);
-            let price = await contract.price(pair)
-            return price.toString()
-        } catch {
-            return ""
-        }
-
-    }
-
     async getSubnetAddress(token: string) {
         try {
-            const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             let subnetToken = await contract.subnetAddresses(token)
             return subnetToken.toString()
         } catch {
             return ""
         }
-
     }
 
     async getMainnetAddress(token: string) {
         try {
-            const contract = new ethers.Contract(this.config.bridge_manager_address, this.abi, this.provider);
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
             let subnetToken = await contract.mainnetAddresses(token)
             return subnetToken.toString()
         } catch {
             return ""
         }
+    }
 
+    private async monitor() {
+        try {
+            const contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            contract.on("BridgeToMainnet", (user: any, asset: any, amount: any, _bridgeRequestID: any, assetName: any, assetSymbol: any, event: any) => {
+                this.eventHandler.emit('BridgeToMainnet', {
+                    network: this.config,
+                    asset,
+                    user,
+                    _bridgeRequestID: _bridgeRequestID.toString(),
+                    amount: amount.toString(),
+                    assetName,
+                    assetSymbol
+                });
+            });
+        } catch (err: any) {
+            console.log("Critical error", this.config, err)
+            process.exit()
+        }
     }
 }

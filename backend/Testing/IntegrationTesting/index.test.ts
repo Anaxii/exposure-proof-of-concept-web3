@@ -30,7 +30,7 @@ let example_config: Config = {
     "subnet": {
         "name": "fuji",
         "api_url": "https://red-weathered-firefly.avalanche-testnet.quiknode.pro/ext/bc/C/rpc",
-        "bridge_manager_address": "0x862355f4d23D21E77aEaE24529819CBdA0A45858",
+        "bridge_address": "0x862355f4d23D21E77aEaE24529819CBdA0A45858",
         "oracle": "0x665a3a94a52C27099B43995001F1e5aBde058D2e",
         "abi": [
             "event BridgeToMainnet(address indexed user, address indexed assetMainnet, address indexed assetSubnet, uint256 amount, string name_, string symbol_)",
@@ -159,7 +159,7 @@ describe("The app can detect bridge requests and fulfill swaps", () => {
     });
 
     test('The app can fulfill mainnet bridge requests', async () => {
-        let success = await networks['fuji'].bridgeToMainnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token, Math.floor(Math.random() * 1000000000).toString())
+        let success = await networks['fuji'].bridgeToMainnet(example_token.tokenAddress, example_config.public_key, "1", example_token.token, example_token.token)
         expect(success);
     });
 });
