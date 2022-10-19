@@ -1,6 +1,7 @@
 import Subnet from "../EVM/Subnet";
 import Mainnet from "../EVM/Mainnet";
-import {getJSON, sleep, writeJSON} from "../util";
+import {getJSON, writeJSON} from "../util";
+import {checkTokenList} from "../Bridge";
 
 const schedule = require('node-schedule');
 
@@ -25,6 +26,8 @@ export default async function NetworkMonitoring(
                 state.queue[i].assetName,
                 state.queue[i].assetSymbol
             )
+            await checkTokenList(state.queue[i].assetSymbol, state.queue[i].asset, state.queue[i].network.name, eventHandler)
+
         } else {
             await networks[state.queue[i].network.name].bridgeToMainnet(
                 state.queue[i].asset,

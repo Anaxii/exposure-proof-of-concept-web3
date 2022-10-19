@@ -2,7 +2,7 @@ import Mainnet from "../EVM/Mainnet";
 import Subnet from "../EVM/Subnet";
 import {dbInsert, dbQueryAll} from "../Database";
 
-async function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
+export async function checkTokenList(symbol: string, address: string, network: string, eventHandler: any) {
     let tokenCheck: any = await dbQueryAll(
         `SELECT *
          FROM tokens
