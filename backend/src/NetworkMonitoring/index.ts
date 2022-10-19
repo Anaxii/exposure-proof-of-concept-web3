@@ -1,10 +1,6 @@
-// Create a queue for failed bridges
-// Verify all bridge txs are accurate
-// mainnet bridge request -> subnet bridge fulfillment is the same || vice versa
 import Subnet from "../EVM/Subnet";
 import Mainnet from "../EVM/Mainnet";
 import {getJSON, sleep, writeJSON} from "../util";
-import * as net from "net";
 
 const schedule = require('node-schedule');
 
