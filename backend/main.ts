@@ -24,9 +24,9 @@ const events = require('events');
    }
 
    await initDatabase()
-   // Bridge(eventHandler, config, subnet, networks)
-   // Oracle(eventHandler, config, subnet, networks)
-   // Baskets(eventHandler, config, subnet, networks)
+   Bridge(eventHandler, config, subnet, networks)
+   Oracle(eventHandler, config, subnet, networks)
+   Baskets(eventHandler, config, subnet, networks)
    NetworkMonitoring(eventHandler, config, subnet, networks)
 }())
 

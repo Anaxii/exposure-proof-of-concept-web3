@@ -25,7 +25,7 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
     })
 
     const rule = new schedule.RecurrenceRule();
-    rule.second = [0, new schedule.Range(0, 59)];
+    rule.minute = [0, new schedule.Range(0, 59)];
     schedule.scheduleJob(rule, async () => {
         while (checkingPairs) {
             await sleep(500)
