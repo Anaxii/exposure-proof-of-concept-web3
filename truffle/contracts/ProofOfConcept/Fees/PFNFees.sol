@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.0;
+
+import "../../Util/Ownable.sol";
+
 contract PFNFees is Ownable {
 
     uint256 public rateDivisor = 1e18;
@@ -10,7 +15,7 @@ contract PFNFees is Ownable {
         feeTiers[0] = 30e15;
     }
 
-    function calculateFee(address _user, uint256 _amount) external virtual view returns (uint256 fee, uint256 remaining) {
+    function calculateFee(address _user, uint256 _amount) external view returns (uint256 fee, uint256 remaining) {
         uint256 _fee = _amount * feeTiers[userFeeTier[_user]] / rateDivisor;
         return (_fee, _amount - _fee);
     }
@@ -39,7 +44,7 @@ contract PFNdAppFees is PFNFees {
         dAppFeeTiers[0] = 3e17;
     }
 
-    function calculateFee(address _user, uint256 _amount, address _dApp, uint256 _dAppFee) external override view returns (uint256 fee, uint256 dAppFee) {
+    function calculateFee(address _user, uint256 _amount, address _dApp, uint256 _dAppFee) external view returns (uint256 fee, uint256 dAppFee) {
         uint256 _fee1 = _amount * feeTiers[userFeeTier[_user]] / rateDivisor;
         uint256 _fee2 = _dAppFee * dAppFeeTiers[dAppFeeTier[_dApp]] / rateDivisor;
         return (_fee1, _fee2);
