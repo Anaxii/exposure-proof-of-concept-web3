@@ -23,7 +23,9 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
         await checkForDEXPairs(networks, data.symbol, data.network)
         checkingPairs = false
     })
-
+    await updateMainnetPrices(api_urls, networks)
+    await computePrices(networks)
+    await updateSubnetPrices(subnet)
     const rule = new schedule.RecurrenceRule();
     rule.minute = [0, new schedule.Range(0, 59)];
     schedule.scheduleJob(rule, async () => {
@@ -38,13 +40,20 @@ export default async function Oracle(eventHandler: any, config: any, subnet: Sub
         updatingPrices = false
         console.log("Finished price update loop")
     });
+
+    setInterval(async () => {
+        let tokens: any = await dbQueryAll("SELECT * FROM tokens", null)
+        console.log(tokens)
+    for (const i in tokens) {
+        await checkForDEXPairs(networks, tokens[i].token_name, tokens[i].network_name)
+    }
+    }, 30 * 60000)
 }
 
 async function computePrices(networks: { [key: string]: Mainnet }) {
     let data = await loopPairs(networks, "computePrices")
     let tokenPrices: { [key: string]: any } = data.tokenPrices
     let tokenMCAPS: { [key: string]: any } = data.tokenMCAPS
-
     for (const token in tokenPrices) {
         let sum = BigInt(0)
         for (const index in tokenPrices[token]) {
@@ -80,7 +89,6 @@ async function computePrices(networks: { [key: string]: Mainnet }) {
 
 async function updateSubnetPrices(subnet: Subnet) {
     let tokens: any = await dbQueryAll("SELECT * FROM tokens", null)
-
     let tokenList: any[][] = [[]]
     let priceList: any[][] = [[]]
     let mcapList: any[][] = [[]]
@@ -93,10 +101,11 @@ async function updateSubnetPrices(subnet: Subnet) {
         let price: any = await dbQueryAll("SELECT * FROM prices WHERE token_name = ?", [tokens[i].token_name])
         let mcap: any = await dbQueryAll("SELECT * FROM mcaps WHERE token_name = ?", [tokens[i].token_name])
         if (price.length > 0 && mcap.length > 0) {
-            priceList[priceList.length - 1].push(price[0].price.toString())
-            mcapList[priceList.length - 1].push(mcap[0].mcap.toString())
+            priceList[priceList.length - 1].push(BigInt(price[0].price))
+            mcapList[priceList.length - 1].push(BigInt(mcap[0].mcap))
             tokenList[tokenList.length - 1].push(tokens[i].contract_address)
         }
+
     }
 
     for (const i in tokenList) {
@@ -151,21 +160,23 @@ async function loopPairs(networks: { [key: string]: Mainnet }, type: string) {
                         "SELECT contract_address FROM routers WHERE network_name = ? AND dex_name = ?",
                         [network, pairs[i].dex_name]
                     )
-                    let pairAddress = await networks[network].getPairAddress(router.contract_address,  pairs[i].quote_address, dollar_coin.contract_address)
+                    let pairAddress = await networks[network].getPairAddress(router[0].contract_address,  pairs[i].quote_address, dollar_coin[0].contract_address)
                     if (pairAddress == "")
                         continue
-                    let success = await networks[network].updatePrices([pairAddress], [pairs[i].quote_address], [dollar_coin.contract_address])
+                    let success = await networks[network].updatePrices([pairAddress], [pairs[i].quote_address], [dollar_coin[0].contract_address])
                     if (!success)
                         continue
                     qp = await networks[network].getPrice(pairAddress)
                 }
                 quotePrices[pairs[i].quote_address] = qp
-                tokenPrices[pairs[i].token_name].push((BigInt(price) * BigInt(10 ** 18) / BigInt(qp)).toString())
-                tokenMCAPS[pairs[i].token_name].push((BigInt(mcap) * BigInt(10 ** 18) / BigInt(qp)).toString())
+                tokenPrices[pairs[i].token_name].push((BigInt(price) * BigInt(10 ** 18) / BigInt(qp)))
+                tokenMCAPS[pairs[i].token_name].push((BigInt(mcap) * BigInt(10 ** 18) / BigInt(qp)))
                 continue
             }
             tokenPrices[pairs[i].token_name].push(price)
             tokenMCAPS[pairs[i].token_name].push(mcap)
+            console.log(tokenPrices[pairs[i].token_name], pairs[i].token_name)
+
         }
     }
 
@@ -195,7 +206,7 @@ async function updateMainnetPrices(api_urls: any, networks: { [key: string]: Mai
         }
     }
 
-    console.log("Updated pair prices")
+    console.log("Updated mainnet prices")
 }
 
 async function checkForDEXPairs(networks: { [key: string]: Mainnet }, symbol: any, network: any) {
@@ -210,14 +221,16 @@ async function checkForDEXPairs(networks: { [key: string]: Mainnet }, symbol: an
         }
 
         let _token_address: any = await dbQueryAll("SELECT * FROM tokens WHERE network_name = ? AND token_name = ?", [network, symbol])
-        let token_address = _token_address.contract_address
+        let token_address = _token_address[0].contract_address
         for (const j in pair_tokens) {
             let pair = await networks[network].getPairAddress(r, token_address, pair_tokens[j])
-            await dbInsert(
-                "INSERT OR IGNORE INTO pairs (network_name, token_name, quote_name, dex_name, pair_name, pair_address, token_address, quote_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                [network, symbol, j, routers[i].dex_name, symbol + "/" + j, pair, token_address, pair_tokens[j]])
+            if (pair != "0x0000000000000000000000000000000000000000")
+                await dbInsert(
+                    "INSERT OR IGNORE INTO pairs (network_name, token_name, quote_name, dex_name, pair_name, pair_address, token_address, quote_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [network, symbol, j, routers[i].dex_name, symbol + "/" + j, pair, token_address, pair_tokens[j]])
         }
     }
+    console.log(`Updated pairs`)
 
-    console.log(`Updated ${symbol} in pairs`)
+
 }
