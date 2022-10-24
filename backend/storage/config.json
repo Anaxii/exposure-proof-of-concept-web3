@@ -20,7 +20,9 @@
         "event BridgeToMainnet(address indexed user, address indexed asset, uint256 indexed amount, uint256 _bridgeRequestID, string name_, string symbol_)",
         "function subnetProductAssetsAddress(address subnetProduct) external view returns (address)",
         "event UpdateSubnet()",
-        "function bridgeRequestIsComplete(uint256 id) external view returns (bool)"
+        "function bridgeRequestIsComplete(uint256 id) external view returns (bool)",
+        "function VerifyMessage(bytes32 _hashedMessage, uint8 _v, bytes32 _r, bytes32 _s) external pure view returns (address)",
+        "function setAllowed(address user, bool status) external"
       ]
     }
   ],

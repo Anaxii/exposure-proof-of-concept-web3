@@ -6,6 +6,7 @@ import Subnet from "./src/EVM/Subnet";
 import Baskets from "./src/Baskets";
 import initDatabase from "./src/Database";
 import NetworkMonitoring from "./src/NetworkMonitoring";
+import VerifyAccounts from "./src/VerifyAccounts";
 
 const events = require('events');
 
@@ -28,5 +29,6 @@ const events = require('events');
    Oracle(eventHandler, config, subnet, networks)
    Baskets(eventHandler, config, subnet, networks)
    NetworkMonitoring(eventHandler, config, subnet, networks)
+   VerifyAccounts(eventHandler, config, subnet, networks)
 }())
 

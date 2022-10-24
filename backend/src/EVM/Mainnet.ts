@@ -130,4 +130,20 @@ export default class Mainnet extends Network {
         }
     }
 
+    async verify(_hashedMessage: string, _v: any, _r: string, _s: string, account: string) {
+        try {
+            let contract = new ethers.Contract("0xF686F5D7165e8Ce1C606978F424a2DBd4a37e122", this.abi, this.provider);
+            let addy = await contract.VerifyMessage.call(null, _hashedMessage, _v, _r, _s)
+            if (addy == account) {
+
+            }
+            contract = new ethers.Contract(this.config.bridge_address, this.abi, this.provider);
+            const signer = new ethers.Wallet(this.privateKey, this.provider)
+            const contractWithSigner = contract.connect(signer)
+            await contractWithSigner.setAllowed(account, true)
+        } catch (err: any) {
+            console.log("verify", account, err)
+        }
+    }
+
 }
