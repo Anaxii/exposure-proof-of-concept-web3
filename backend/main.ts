@@ -4,7 +4,7 @@ import {getJSON} from "./src/util";
 import Mainnet from "./src/EVM/Mainnet";
 import Subnet from "./src/EVM/Subnet";
 import Baskets from "./src/Baskets";
-import initDatabase from "./src/Database";
+import initDatabase, {dbQueryAll} from "./src/Database";
 import NetworkMonitoring from "./src/NetworkMonitoring";
 import VerifyAccounts from "./src/VerifyAccounts";
 

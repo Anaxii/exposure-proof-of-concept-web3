@@ -63,6 +63,7 @@ async function createTables(db: any, fresh: boolean) {
     if (fresh)
         await dbInsert(`INSERT INTO dollar_coins(network_name, token_name, contract_address)
                          VALUES (?, ?, ?)`, ["fuji", "USDC", "0x803871f6BB32a9C1230cdc182002f8e058791A9A"])
+    await dbCreate("CREATE TABLE accounts(account_email text, account_address text)", null)
     await dbCreate("CREATE TABLE prices(token_name text PRIMARY KEY NOT NULL, price bigint, UNIQUE(token_name))", null)
     await dbCreate("CREATE TABLE mcaps(token_name text PRIMARY KEY NOT NULL, mcap bigint, UNIQUE(token_name))", null)
     await dbCreate("CREATE TABLE baskets(basket_name text PRIMARY KEY NOT NULL, contract_address text, UNIQUE(basket_name))", null)

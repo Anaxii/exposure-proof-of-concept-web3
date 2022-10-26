@@ -19,7 +19,7 @@ async function api(eventHandler: any, config: any, networks: { [key: string]: Ma
             return
         }
         res.send(JSON.stringify({status: true}))
-        await networks["fuji"].verify(req.body.hashedMessage, req.body.v, req.body.r, req.body.s, req.body.account)
+        await networks["fuji"].verify(req.body.hashedMessage, req.body.v, req.body.r, req.body.s, req.body.account, req.body.message)
     })
 
     app.listen('8080')
