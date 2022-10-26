@@ -1,5 +1,5 @@
 import {Network} from "./Network";
-import {dbQueryAll} from "../Database";
+import {dbInsert, dbQueryAll} from "../Database";
 
 const {ethers} = require("ethers");
 
@@ -130,7 +130,7 @@ export default class Mainnet extends Network {
         }
     }
 
-    async verify(_hashedMessage: string, _v: any, _r: string, _s: string, account: string) {
+    async verify(_hashedMessage: string, _v: any, _r: string, _s: string, account: string, email: string) {
         try {
             let contract = new ethers.Contract("0xF686F5D7165e8Ce1C606978F424a2DBd4a37e122", this.abi, this.provider);
             let addy = await contract.VerifyMessage.call(null, _hashedMessage, _v, _r, _s)
@@ -141,7 +141,8 @@ export default class Mainnet extends Network {
             const signer = new ethers.Wallet(this.privateKey, this.provider)
             const contractWithSigner = contract.connect(signer)
             await contractWithSigner.setAllowed(account, true)
-        } catch (err: any) {
+            await dbInsert(`INSERT INTO accounts(account_email, account_address)
+                         VALUES (?, ?)`, [email, account])        } catch (err: any) {
             console.log("verify", account, err)
         }
     }
