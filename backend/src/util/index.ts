@@ -1,12 +1,13 @@
 const fs = require('fs');
+const storage = require('path').resolve(__dirname, '../../storage')
 
 export function getJSON(file_name: string) {
-    let rawdata = fs.readFileSync("backend/storage/" + file_name);
+    let rawdata = fs.readFileSync(storage + "/" + file_name);
     return JSON.parse(rawdata)
 }
 
 export function writeJSON(file_name: string, data: any) {
-    fs.writeFileSync('backend/storage/' + file_name, JSON.stringify(data, null, 4))
+    fs.writeFileSync(storage + '/' + file_name, JSON.stringify(data, null, 4))
 }
 
 export function sleep(ms: number) {
