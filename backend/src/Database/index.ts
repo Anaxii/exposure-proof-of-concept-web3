@@ -1,9 +1,10 @@
 const sqlite3 = require('sqlite3').verbose();
+const storage = require('path').resolve(__dirname, '../../storage')
 
 export default async function initDatabase() {
     return new Promise(async (ok: any) => {
         let fresh = false
-        let db = new sqlite3.Database('backend/storage/database.db', sqlite3.OPEN_READWRITE, async (err: any) => {
+        let db = new sqlite3.Database(storage + '/database.db', sqlite3.OPEN_READWRITE, async (err: any) => {
             if (err) {
                 db = await setupDatabase()
                 fresh = true
@@ -17,11 +18,11 @@ export default async function initDatabase() {
 }
 
 async function getDB() {
-    return new sqlite3.Database('backend/storage/database.db', sqlite3.OPEN_READWRITE);
+    return new sqlite3.Database(storage + '/database.db', sqlite3.OPEN_READWRITE);
 }
 
 async function setupDatabase() {
-    return new sqlite3.Database("backend/storage/database.db",
+    return new sqlite3.Database(storage + "/database.db",
         sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
         (err: any) => {
             if (err) {
